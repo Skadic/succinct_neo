@@ -96,7 +96,7 @@ impl IntAccess for IntVec {
         self.size
     }
 
-    fn get(&self, index: usize) -> usize {
+    unsafe fn get_unchecked(&self, index: usize) -> usize {
         let index_block = (index * self.width) / Self::block_width();
         let index_offset = (index * self.width) % Self::block_width();
 

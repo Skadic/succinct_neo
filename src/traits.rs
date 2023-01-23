@@ -31,12 +31,30 @@ impl BlockType for u8 {}
 
 pub trait IntAccess {
     fn len(&self) -> usize;
-    fn get(&self, index: usize) -> usize;
+
+
+    unsafe fn get_unchecked(&self, index: usize) -> usize;
+    fn get(&self, index: usize) -> usize {
+        if index >= self.len() {
+            panic!("length is {} but index is {index}", self.len())
+        }
+        // SAFETY: We checked that the index is in bounds
+        unsafe { self.get_unchecked(index) }
+    }
+
+
+    unsafe fn set_unchecked(&mut self, index: usize, value: usize);
     fn set(&mut self, index: usize, value: usize) {
         if index >= self.len() {
             panic!("length is {} but index is {index}", self.len())
         }
+        // SAFETY: We checked that the index is in bounds
         unsafe { self.set_unchecked(index, value) }
     }
-    unsafe fn set_unchecked(&mut self, index: usize, value: usize);
+}
+
+pub trait BitAccess {
+    fn len(&self) -> usize;
+    fn get(&self, index: usize) -> usize;
+    fn set(&mut self, index: usize, value: bool);
 }
