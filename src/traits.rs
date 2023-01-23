@@ -32,7 +32,6 @@ impl BlockType for u8 {}
 pub trait IntAccess {
     fn len(&self) -> usize;
 
-
     unsafe fn get_unchecked(&self, index: usize) -> usize;
     fn get(&self, index: usize) -> usize {
         if index >= self.len() {
@@ -41,7 +40,6 @@ pub trait IntAccess {
         // SAFETY: We checked that the index is in bounds
         unsafe { self.get_unchecked(index) }
     }
-
 
     unsafe fn set_unchecked(&mut self, index: usize, value: usize);
     fn set(&mut self, index: usize, value: usize) {
@@ -55,6 +53,30 @@ pub trait IntAccess {
 
 pub trait BitAccess {
     fn len(&self) -> usize;
-    fn get(&self, index: usize) -> usize;
-    fn set(&mut self, index: usize, value: bool);
+
+    unsafe fn get_unchecked(&self, index: usize) -> bool;
+    fn get(&self, index: usize) -> bool {
+        if index >= self.len() {
+            panic!("length is {} but index is {index}", self.len())
+        }
+        unsafe { self.get_unchecked(index) }
+    }
+
+    unsafe fn set_unchecked(&mut self, index: usize, value: bool);
+    fn set(&mut self, index: usize, value: bool) {
+        if index >= self.len() {
+            panic!("length is {} but index is {index}", self.len())
+        }
+
+        unsafe { self.set_unchecked(index, value) }
+    }
+
+    unsafe fn flip_unchecked(&mut self, index: usize);
+    fn flip(&mut self, index: usize) {
+        if index >= self.len() {
+            panic!("length is {} but index is {index}", self.len())
+        }
+
+        unsafe { self.flip_unchecked(index) }
+    }
 }
