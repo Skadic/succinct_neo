@@ -16,8 +16,8 @@ mod trait_impls;
 /// use succinct_neo::bit_vec::{BitVec, slice::BitSliceMut};
 /// use succinct_neo::traits::{BitGet, BitModify, SliceBitMut};
 /// 
-/// let bv = BitVec::new(16);
-/// let slice = bv.slice_mut(8..10);
+/// let mut bv = BitVec::new(16);
+/// let mut slice = bv.slice_mut(8..10);
 /// assert_eq!(2, slice.len());
 /// 
 /// slice.set(0, true);
@@ -128,7 +128,6 @@ mod test {
         for i in 0..n {
             slice.set(i, i % 5 == 0);
         }
-        drop(slice);
 
         let slice = bv.slice(..);
         for (i, (expect, actual)) in bv.iter().zip(slice).enumerate() {
@@ -152,7 +151,6 @@ mod test {
         for i in 0..slice.len() {
             slice.set(i, i % 2 == 0);
         }
-        drop(slice);
 
         let slice = bv.slice(20..40);
         for (i, (expect, actual)) in bv.iter().skip(20).zip(slice).enumerate() {
@@ -166,7 +164,7 @@ mod test {
 
         for (i, v) in bv.into_iter().enumerate() {
             assert_eq!(
-                if i >= 20 && i < 40 { i % 5 == 0 } else { false },
+                (20..40).contains(&i) && i % 2 == 0,
                 v,
                 "incorrect value at index {i}"
             )
