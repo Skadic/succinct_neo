@@ -1,41 +1,9 @@
-use core::panic;
-use std::ops::{Range, RangeFrom, RangeFull, RangeInclusive, RangeTo};
+use std::ops::{RangeFull, RangeFrom, Range, RangeTo, RangeInclusive};
 
 use crate::traits::{BitGet, BitModify, SliceBit, SliceBitMut};
 
-pub struct BitSlice<'a, Backing> {
-    backing: &'a Backing,
-    start: usize,
-    end: usize,
-}
+use super::{Iter, BitSlice, BitSliceMut};
 
-impl<'a, Backing> BitSlice<'a, Backing> {
-    pub fn new(backing: &'a Backing, start: usize, end: usize) -> Self {
-        debug_assert!(
-            start <= end,
-            "end index must be greater or equal to the start index"
-        );
-        Self {
-            backing,
-            start,
-            end,
-        }
-    }
-
-    pub fn len(&self) -> usize {
-        self.end - self.start
-    }
-}
-
-impl<'a, Backing: BitGet> BitSlice<'a, Backing> {
-    pub fn iter(&self) -> Iter<'a, Backing> {
-        Iter {
-            backing: self.backing,
-            len: self.len(),
-            current: 0,
-        }
-    }
-}
 
 impl<Backing: BitGet> BitGet for BitSlice<'_, Backing> {
     unsafe fn get_unchecked(&self, index: usize) -> bool {
@@ -47,30 +15,6 @@ impl<Backing: BitGet> BitGet for BitSlice<'_, Backing> {
             panic!("index is {index} but length is {}", self.len())
         }
         unsafe { self.backing.get_unchecked(self.start + index) }
-    }
-}
-
-pub struct BitSliceMut<'a, Backing> {
-    backing: &'a mut Backing,
-    start: usize,
-    end: usize,
-}
-
-impl<'a, Backing> BitSliceMut<'a, Backing> {
-    pub fn new(backing: &'a mut Backing, start: usize, end: usize) -> Self {
-        debug_assert!(
-            start <= end,
-            "end index must be greater or equal to the start index"
-        );
-        Self {
-            backing,
-            start,
-            end,
-        }
-    }
-
-    pub fn len(&self) -> usize {
-        self.end - self.start
     }
 }
 
@@ -115,12 +59,6 @@ impl<Backing: BitModify> BitModify for BitSliceMut<'_, Backing> {
         }
         unsafe { self.backing.flip_unchecked(self.start + index) }
     }
-}
-
-pub struct Iter<'a, Backing> {
-    backing: &'a Backing,
-    len: usize,
-    current: usize,
 }
 
 impl<'a, Backing: BitGet> Iterator for Iter<'a, Backing> {
@@ -297,26 +235,5 @@ where
 {
     fn slice_mut(&mut self, range: RangeInclusive<usize>) -> BitSliceMut<Self> {
         BitSliceMut::new(self, *range.start(), *range.end())
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use crate::{bit_vec::BitVec, traits::{SliceBitMut, BitModify}};
-
-    #[test]
-    fn full_range_test() {
-        let mut bv = BitVec::new(80);
-        let n = bv.len();
-        let mut slice = bv.slice_mut(..);
-
-        for i in 0..n {
-            slice.set(i, i % 5 == 0);
-        }
-        drop(slice);
-
-        for (i, v) in bv.into_iter().enumerate() {
-            assert_eq!(i % 5 == 0, v, "incorrect value at index {i}")
-        }
     }
 }
