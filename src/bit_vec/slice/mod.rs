@@ -3,29 +3,30 @@ use crate::traits::BitGet;
 mod trait_impls;
 
 /// A view into a segment of a type which supports `BitGet` and `BitModify` if the backing type supports it respectively.
-/// 
+///
 /// Properties:
-/// 
+///
 /// * `backing`: The backing store for the bits.
 /// * `start`: The index of the first bit in the slice.
 /// * `end`: The index of the first bit that is not part of the slice.
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```
 /// use succinct_neo::bit_vec::{BitVec, slice::BitSliceMut};
 /// use succinct_neo::traits::{BitGet, BitModify, SliceBitMut};
-/// 
+///
 /// let mut bv = BitVec::new(16);
 /// let mut slice = bv.slice_mut(8..10);
 /// assert_eq!(2, slice.len());
-/// 
+///
 /// slice.set(0, true);
 /// // We can't access the original bitvector if the (mutably borrowing) slice is still around.
 /// drop(slice);
-/// 
+///
 /// assert_eq!(true, bv.get(8));
 /// ```
+#[derive(Debug)]
 pub struct BitSlice<'a, Backing> {
     backing: &'a Backing,
     start: usize,
@@ -66,6 +67,7 @@ impl<'a, Backing: BitGet> BitSlice<'a, Backing> {
     }
 }
 
+#[derive(Debug)]
 pub struct BitSliceMut<'a, Backing> {
     backing: &'a mut Backing,
     start: usize,
@@ -96,6 +98,7 @@ impl<'a, Backing> BitSliceMut<'a, Backing> {
     }
 }
 
+#[derive(Debug)]
 pub struct Iter<Backing> {
     backing: Backing,
     current: usize,
@@ -145,7 +148,6 @@ mod test {
     #[test]
     fn range_test() {
         let mut bv = BitVec::new(80);
-        let n = bv.len();
         let mut slice = bv.slice_mut(20..40);
 
         for i in 0..slice.len() {
@@ -168,6 +170,63 @@ mod test {
                 v,
                 "incorrect value at index {i}"
             )
+        }
+    }
+
+    #[test]
+    fn range_inclusive_test() {
+        let mut bv = BitVec::new(80);
+
+        for i in 20..40 {
+            bv.set(i, i % 2 == 0);
+        }
+
+        for (i, (expect, actual)) in bv
+            .slice(20..40)
+            .into_iter()
+            .zip(bv.slice(20..=39))
+            .enumerate()
+        {
+            assert_eq!(expect, actual, "incorrect value at index {}", i + 20)
+        }
+    }
+
+    #[test]
+    fn range_to_test() {
+        let mut bv = BitVec::new(80);
+
+        for i in 20..40 {
+            bv.set(i, i % 2 == 0);
+        }
+
+        for (i, (expect, actual)) in bv.slice(0..40).into_iter().zip(bv.slice(..40)).enumerate() {
+            assert_eq!(expect, actual, "incorrect value at index {i}")
+        }
+    }
+
+    #[test]
+    fn range_to_inclusive_test() {
+        let mut bv = BitVec::new(80);
+
+        for i in 20..40 {
+            bv.set(i, i % 2 == 0);
+        }
+
+        for (i, (expect, actual)) in bv.slice(0..40).into_iter().zip(bv.slice(..=39)).enumerate() {
+            assert_eq!(expect, actual, "incorrect value at index {i}")
+        }
+    }
+
+    #[test]
+    fn range_from_test() {
+        let mut bv = BitVec::new(80);
+
+        for i in 20..40 {
+            bv.set(i, i % 2 == 0);
+        }
+
+        for (i, (expect, actual)) in bv.slice(20..80).into_iter().zip(bv.slice(20..)).enumerate() {
+            assert_eq!(expect, actual, "incorrect value at index {}", i + 20)
         }
     }
 }

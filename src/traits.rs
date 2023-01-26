@@ -7,7 +7,7 @@ use num::{
 
 use crate::bit_vec::slice::{BitSlice, BitSliceMut};
 
-/// A trait supporting basic primitve integer operations, used for block types in compressed data structures. 
+/// A trait supporting basic primitve integer operations, used for block types in compressed data structures.
 pub trait BlockType:
     Unsigned
     + Integer

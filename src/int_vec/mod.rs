@@ -100,7 +100,6 @@ impl IntVec {
 }
 
 impl IntAccess for IntVec {
-    
     fn get(&self, index: usize) -> usize {
         if index >= self.len() {
             panic!("length is {} but index is {index}", self.len())
@@ -160,7 +159,6 @@ impl IntAccess for IntVec {
         self.data[index_block] &= !(mask << index_offset);
         self.data[index_block] |= value << index_offset;
     }
-
 }
 
 impl IntoIterator for IntVec {
