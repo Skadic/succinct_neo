@@ -32,25 +32,11 @@ impl BlockType for u16 {}
 impl BlockType for u8 {}
 
 pub trait IntAccess {
-    fn len(&self) -> usize;
-
     unsafe fn get_unchecked(&self, index: usize) -> usize;
-    fn get(&self, index: usize) -> usize {
-        if index >= self.len() {
-            panic!("length is {} but index is {index}", self.len())
-        }
-        // SAFETY: We checked that the index is in bounds
-        unsafe { self.get_unchecked(index) }
-    }
+    fn get(&self, index: usize) -> usize;
 
     unsafe fn set_unchecked(&mut self, index: usize, value: usize);
-    fn set(&mut self, index: usize, value: usize) {
-        if index >= self.len() {
-            panic!("length is {} but index is {index}", self.len())
-        }
-        // SAFETY: We checked that the index is in bounds
-        unsafe { self.set_unchecked(index, value) }
-    }
+    fn set(&mut self, index: usize, value: usize);
 }
 
 pub trait BitGet {
@@ -61,24 +47,24 @@ pub trait BitGet {
 impl<T: BitGet> BitGet for &'_ T {
     #[inline]
     unsafe fn get_unchecked(&self, index: usize) -> bool {
-        <T as BitGet>::get_unchecked(&self, index)
+        <T as BitGet>::get_unchecked(self, index)
     }
 
     #[inline]
     fn get(&self, index: usize) -> bool {
-        <T as BitGet>::get(&self, index)
+        <T as BitGet>::get(self, index)
     }
 }
 
 impl<T: BitGet> BitGet for &'_ mut T {
     #[inline]
     unsafe fn get_unchecked(&self, index: usize) -> bool {
-        <T as BitGet>::get_unchecked(&self, index)
+        <T as BitGet>::get_unchecked(self, index)
     }
 
     #[inline]
     fn get(&self, index: usize) -> bool {
-        <T as BitGet>::get(&self, index)
+        <T as BitGet>::get(self, index)
     }
 }
 
@@ -90,11 +76,11 @@ pub trait BitModify {
 }
 
 pub trait SliceBit<Index>: Sized {
-    fn slice<'a>(&'a self, index: Index) -> BitSlice<'a, Self>;
+    fn slice(&self, index: Index) -> BitSlice<'_, Self>;
 }
 
 pub trait SliceBitMut<Index>: Sized {
-    fn slice_mut<'a>(&'a mut self, index: Index) -> BitSliceMut<'a, Self>;
+    fn slice_mut(&mut self, index: Index) -> BitSliceMut<'_, Self>;
 }
 
 pub trait BitAccess: BitGet + BitModify {}

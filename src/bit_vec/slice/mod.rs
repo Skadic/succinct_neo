@@ -2,6 +2,30 @@ use crate::traits::BitGet;
 
 mod trait_impls;
 
+/// A view into a segment of a type which supports `BitGet` and `BitModify` if the backing type supports it respectively.
+/// 
+/// Properties:
+/// 
+/// * `backing`: The backing store for the bits.
+/// * `start`: The index of the first bit in the slice.
+/// * `end`: The index of the first bit that is not part of the slice.
+/// 
+/// # Examples
+/// 
+/// ```
+/// use succinct_neo::bit_vec::{BitVec, slice::BitSliceMut};
+/// use succinct_neo::traits::{BitGet, BitModify, SliceBitMut};
+/// 
+/// let bv = BitVec::new(16);
+/// let slice = bv.slice_mut(8..10);
+/// assert_eq!(2, slice.len());
+/// 
+/// slice.set(0, true);
+/// // We can't access the original bitvector if the (mutably borrowing) slice is still around.
+/// drop(slice);
+/// 
+/// assert_eq!(true, bv.get(8));
+/// ```
 pub struct BitSlice<'a, Backing> {
     backing: &'a Backing,
     start: usize,
@@ -21,8 +45,14 @@ impl<'a, Backing> BitSlice<'a, Backing> {
         }
     }
 
+    #[inline]
     pub fn len(&self) -> usize {
         self.end - self.start
+    }
+
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 }
 
@@ -55,8 +85,14 @@ impl<'a, Backing> BitSliceMut<'a, Backing> {
         }
     }
 
+    #[inline]
     pub fn len(&self) -> usize {
         self.end - self.start
+    }
+
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 }
 

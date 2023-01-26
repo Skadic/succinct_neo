@@ -78,22 +78,35 @@ impl IntVec {
         self.size += 1;
     }
 
+    #[inline]
     pub fn raw_data(&self) -> &[usize] {
         &self.data
     }
 
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.size == 0
     }
 
+    #[inline]
+    fn len(&self) -> usize {
+        self.size
+    }
+
+    #[inline]
     pub fn iter(&self) -> Iter {
         Iter { i: 0, v: self }
     }
 }
 
 impl IntAccess for IntVec {
-    fn len(&self) -> usize {
-        self.size
+    
+    fn get(&self, index: usize) -> usize {
+        if index >= self.len() {
+            panic!("length is {} but index is {index}", self.len())
+        }
+
+        unsafe { self.get_unchecked(index) }
     }
 
     unsafe fn get_unchecked(&self, index: usize) -> usize {
@@ -147,6 +160,7 @@ impl IntAccess for IntVec {
         self.data[index_block] &= !(mask << index_offset);
         self.data[index_block] |= value << index_offset;
     }
+
 }
 
 impl IntoIterator for IntVec {

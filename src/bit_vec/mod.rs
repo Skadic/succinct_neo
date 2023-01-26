@@ -36,6 +36,10 @@ impl BitVec {
     pub fn iter(&self) -> Iter<&Self> {
         self.into_iter()
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.size == 0
+    }
 }
 
 impl BitGet for BitVec {
