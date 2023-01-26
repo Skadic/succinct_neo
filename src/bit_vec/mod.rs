@@ -134,6 +134,7 @@ impl<'a> IntoIterator for &'a BitVec {
     }
 }
 
+#[cfg(test)]
 mod test {
     use crate::traits::{BitModify, BitGet};
 

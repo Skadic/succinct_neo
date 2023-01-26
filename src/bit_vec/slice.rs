@@ -302,7 +302,7 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::{bit_vec::BitVec, traits::{SliceBit, SliceBitMut, BitModify}};
+    use crate::{bit_vec::BitVec, traits::{SliceBitMut, BitModify}};
 
     #[test]
     fn full_range_test() {
