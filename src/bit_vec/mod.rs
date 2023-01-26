@@ -1,6 +1,8 @@
 use crate::traits::{BitGet, BitModify};
+use std::fmt::{Debug, Formatter};
 
-use self::slice::{BitSlice, Iter};
+use self::slice::Iter;
+use itertools::Itertools;
 
 pub mod slice;
 
@@ -13,7 +15,7 @@ const WORD_EXP: usize = 6;
 /// A mask for quickly calculating the modulus
 const WORD_MASK: usize = (1 << WORD_EXP) - 1;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct BitVec {
     data: Vec<usize>,
     size: usize,
@@ -31,7 +33,7 @@ impl BitVec {
         self.size
     }
 
-    pub fn iter(&self) -> Iter<'_, Self> {
+    pub fn iter(&self) -> Iter<&Self> {
         self.into_iter()
     }
 }
@@ -125,22 +127,39 @@ impl IntoIterator for BitVec {
 }
 
 impl<'a> IntoIterator for &'a BitVec {
-    type Item=bool;
+    type Item = bool;
 
-    type IntoIter=Iter<'a, BitVec>;
+    type IntoIter = Iter<&'a BitVec>;
 
     fn into_iter(self) -> Self::IntoIter {
-        BitSlice::new(self, 0, self.size).into_iter()
+        Iter::new(self, 0, self.size)
+    }
+}
+
+impl Debug for BitVec {
+    #[allow(unstable_name_collisions)]
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{{")
+            .and_then(|_| {
+                write!(
+                    f,
+                    "{}",
+                    self.iter()
+                        .map(|v| if v { "1" } else { "0" })
+                        .intersperse(", ")
+                        .collect::<String>()
+                )
+            })
+            .and_then(|_| write!(f, "}}"))
     }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::traits::{BitModify, BitGet};
+    use crate::traits::{BitGet, BitModify};
 
     use super::BitVec;
 
-    
     #[test]
     fn set_get_test() {
         let mut bv = BitVec::new(160);

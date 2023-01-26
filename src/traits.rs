@@ -58,6 +58,30 @@ pub trait BitGet {
     fn get(&self, index: usize) -> bool;
 }
 
+impl<T: BitGet> BitGet for &'_ T {
+    #[inline]
+    unsafe fn get_unchecked(&self, index: usize) -> bool {
+        <T as BitGet>::get_unchecked(&self, index)
+    }
+
+    #[inline]
+    fn get(&self, index: usize) -> bool {
+        <T as BitGet>::get(&self, index)
+    }
+}
+
+impl<T: BitGet> BitGet for &'_ mut T {
+    #[inline]
+    unsafe fn get_unchecked(&self, index: usize) -> bool {
+        <T as BitGet>::get_unchecked(&self, index)
+    }
+
+    #[inline]
+    fn get(&self, index: usize) -> bool {
+        <T as BitGet>::get(&self, index)
+    }
+}
+
 pub trait BitModify {
     unsafe fn set_unchecked(&mut self, index: usize, value: bool);
     fn set(&mut self, index: usize, value: bool);

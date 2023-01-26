@@ -1,9 +1,8 @@
-use std::ops::{RangeFull, RangeFrom, Range, RangeTo, RangeInclusive};
+use std::ops::{Range, RangeFrom, RangeFull, RangeInclusive, RangeTo};
 
 use crate::traits::{BitGet, BitModify, SliceBit, SliceBitMut};
 
-use super::{Iter, BitSlice, BitSliceMut};
-
+use super::{BitSlice, BitSliceMut, Iter};
 
 impl<Backing: BitGet> BitGet for BitSlice<'_, Backing> {
     unsafe fn get_unchecked(&self, index: usize) -> bool {
@@ -61,11 +60,11 @@ impl<Backing: BitModify> BitModify for BitSliceMut<'_, Backing> {
     }
 }
 
-impl<'a, Backing: BitGet> Iterator for Iter<'a, Backing> {
+impl<Backing: BitGet> Iterator for Iter<Backing> {
     type Item = bool;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.current >= self.len {
+        if self.current >= self.end {
             return None;
         }
         let v = unsafe { self.backing.get_unchecked(self.current) };
@@ -74,65 +73,49 @@ impl<'a, Backing: BitGet> Iterator for Iter<'a, Backing> {
     }
 }
 
-impl<'a, Backing: BitGet> ExactSizeIterator for Iter<'a, Backing> {
+impl<Backing: BitGet> ExactSizeIterator for Iter<Backing> {
     fn len(&self) -> usize {
-        self.len - self.current
+        self.end - self.current
     }
 }
 
 impl<'a, Backing: BitGet> IntoIterator for BitSlice<'a, Backing> {
     type Item = bool;
 
-    type IntoIter = Iter<'a, Backing>;
+    type IntoIter = Iter<&'a Backing>;
 
     fn into_iter(self) -> Self::IntoIter {
-        Self::IntoIter {
-            backing: self.backing,
-            len: self.len(),
-            current: 0,
-        }
+        Iter::new(self.backing, self.start, self.end)
     }
 }
 
-impl<'a, Backing: BitGet> IntoIterator for &BitSlice<'a, Backing> {
+impl<'a, Backing: BitGet> IntoIterator for &'_ BitSlice<'a, Backing> {
     type Item = bool;
 
-    type IntoIter = Iter<'a, Backing>;
+    type IntoIter = Iter<&'a Backing>;
 
     fn into_iter(self) -> Self::IntoIter {
-        Self::IntoIter {
-            backing: self.backing,
-            len: self.len(),
-            current: 0,
-        }
+        Iter::new(self.backing, self.start, self.end)
     }
 }
 
 impl<'a, Backing: BitGet> IntoIterator for BitSliceMut<'a, Backing> {
     type Item = bool;
 
-    type IntoIter = Iter<'a, Backing>;
+    type IntoIter = Iter<&'a mut Backing>;
 
     fn into_iter(self) -> Self::IntoIter {
-        Self::IntoIter {
-            backing: self.backing,
-            len: self.len(),
-            current: 0,
-        }
+        Iter::new(self.backing, self.start, self.end)
     }
 }
 
-impl<'a, Backing: BitGet> IntoIterator for &'a BitSliceMut<'_, Backing> {
+impl<'a, 'b, Backing: BitGet> IntoIterator for &'a BitSliceMut<'b, Backing> {
     type Item = bool;
 
-    type IntoIter = Iter<'a, Backing>;
+    type IntoIter = Iter<&'a &'b mut Backing>;
 
     fn into_iter(self) -> Self::IntoIter {
-        Self::IntoIter {
-            backing: self.backing,
-            len: self.len(),
-            current: 0,
-        }
+        Iter::new(&self.backing, self.start, self.end)
     }
 }
 

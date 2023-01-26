@@ -1,7 +1,4 @@
-use core::panic;
-use std::ops::{Range, RangeFrom, RangeFull, RangeInclusive, RangeTo};
-
-use crate::traits::{BitGet, BitModify, SliceBit, SliceBitMut};
+use crate::traits::BitGet;
 
 mod trait_impls;
 
@@ -30,11 +27,11 @@ impl<'a, Backing> BitSlice<'a, Backing> {
 }
 
 impl<'a, Backing: BitGet> BitSlice<'a, Backing> {
-    pub fn iter(&self) -> Iter<'a, Backing> {
+    pub fn iter(&self) -> Iter<&'a Backing> {
         Iter {
             backing: self.backing,
-            len: self.len(),
             current: 0,
+            end: self.len(),
         }
     }
 }
@@ -63,10 +60,20 @@ impl<'a, Backing> BitSliceMut<'a, Backing> {
     }
 }
 
-pub struct Iter<'a, Backing> {
-    backing: &'a Backing,
-    len: usize,
+pub struct Iter<Backing> {
+    backing: Backing,
     current: usize,
+    end: usize,
+}
+
+impl<Backing> Iter<Backing> {
+    pub fn new(backing: Backing, start: usize, end: usize) -> Self {
+        Self {
+            backing,
+            current: start,
+            end,
+        }
+    }
 }
 
 #[cfg(test)]
