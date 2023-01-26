@@ -1,8 +1,18 @@
-use std::ops::{Range, RangeFrom, RangeFull, RangeInclusive, RangeTo};
+use std::ops::{Range, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive};
 
 use crate::traits::{BitGet, BitModify, SliceBit, SliceBitMut};
 
 use super::{BitSlice, BitSliceMut, Iter};
+
+impl<B1: BitGet, B2: BitGet> PartialEq<BitSlice<'_, B2>> for BitSlice<'_, B1> {
+    fn eq(&self, other: &BitSlice<'_, B2>) -> bool {
+        if self.len() != other.len() {
+            return false;
+        }
+
+        Iterator::eq(self.into_iter(), other.into_iter())
+    }
+}
 
 impl<Backing: BitGet> BitGet for BitSlice<'_, Backing> {
     unsafe fn get_unchecked(&self, index: usize) -> bool {
@@ -161,12 +171,21 @@ where
     }
 }
 
+impl<T> SliceBit<RangeToInclusive<usize>> for T
+where
+    T: BitGet,
+{
+    fn slice(&self, range: RangeToInclusive<usize>) -> BitSlice<Self> {
+        BitSlice::new(self, 0, range.end + 1)
+    }
+}
+
 impl<T> SliceBit<RangeInclusive<usize>> for T
 where
     T: BitGet,
 {
     fn slice(&self, range: RangeInclusive<usize>) -> BitSlice<Self> {
-        BitSlice::new(self, *range.start(), *range.end())
+        BitSlice::new(self, *range.start(), *range.end() + 1)
     }
 }
 
@@ -208,7 +227,16 @@ where
     T: BitModify,
 {
     fn slice_mut(&mut self, range: RangeTo<usize>) -> BitSliceMut<Self> {
-        BitSliceMut::new(self, 0, range.end)
+        BitSliceMut::new(self, 0, range.end + 1)
+    }
+}
+
+impl<T> SliceBitMut<RangeToInclusive<usize>> for T
+where
+    T: BitModify,
+{
+    fn slice_mut(&mut self, range: RangeToInclusive<usize>) -> BitSliceMut<Self> {
+        BitSliceMut::new(self, 0, range.end + 1)
     }
 }
 
