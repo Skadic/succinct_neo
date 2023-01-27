@@ -28,6 +28,8 @@ jobs:
       run: cargo build --package succinct_neo --verbose
     - name: Run tests
       run: cargo xtask test_instr
+    - name: Show files
+      run: tree .
     - name: Generate Coverage
       run: cargo xtask cover_only lcov
     - name: Cleanup
