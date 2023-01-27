@@ -1,4 +1,4 @@
-use crate::traits::BitGet;
+use crate::traits::{BitGet, SliceBit};
 
 mod trait_impls;
 
@@ -55,12 +55,6 @@ impl<'a, Backing> BitSlice<'a, Backing> {
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
-
-    // pub fn split(&self, index: usize) -> (BitSlice<'a, Backing>, BitSlice<'a, Backing>) {
-    //     if index >= self.len() {
-    //         panic!("index is {index} but length is {}", self.len())
-    //     }
-    // }
 }
 
 impl<'a, Backing: BitGet> BitSlice<'a, Backing> {
@@ -70,6 +64,17 @@ impl<'a, Backing: BitGet> BitSlice<'a, Backing> {
             current: self.start,
             end: self.end,
         }
+    }
+
+    pub fn split(&self, index: usize) -> (BitSlice<'_, Backing>, BitSlice<'_, Backing>) {
+        if index >= self.len() {
+            panic!("index is {index} but length is {}", self.len())
+        }
+
+        (
+            BitSlice::new(self.backing, self.start, index),
+            BitSlice::new(self.backing, index, self.end),
+        )
     }
 }
 
@@ -112,6 +117,40 @@ impl<'a, Backing: BitGet> BitSliceMut<'a, Backing> {
             end: self.len(),
         }
     }
+
+    pub fn split(&self, index: usize) -> (BitSlice<'_, Backing>, BitSlice<'_, Backing>) {
+        if index >= self.len() {
+            panic!("index is {index} but length is {}", self.len())
+        }
+
+        // SAFETY: We know this is safe since we just created the pointer so it definitely is not null
+        // In addition we are only removing the mutable part of the reference, so this is fine
+        let ptr = unsafe { (self.backing as *const Backing).as_ref().unwrap() };
+        (
+            BitSlice::new(ptr, self.start, index),
+            BitSlice::new(ptr, index, self.end),
+        )
+    }
+
+    pub fn split_mut(
+        &mut self,
+        index: usize,
+    ) -> (BitSliceMut<'_, Backing>, BitSliceMut<'_, Backing>) {
+        if index >= self.len() {
+            panic!("index is {index} but length is {}", self.len())
+        }
+
+        let ptr = self.backing as *mut Backing;
+
+        // SAFETY: We know this is safe since we just created the pointer so it definitely is not null
+        // Also, since the slices we create do not overlap, it is no problem to have two mutable references to the backing datastructure
+        unsafe {
+            (
+                BitSliceMut::new(ptr.as_mut().unwrap(), self.start, index),
+                BitSliceMut::new(ptr.as_mut().unwrap(), index, self.end),
+            )
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -135,7 +174,7 @@ impl<Backing> Iter<Backing> {
 mod test {
     use crate::{
         bit_vec::BitVec,
-        traits::{BitModify, SliceBit, SliceBitMut},
+        traits::{BitModify, SliceBit, SliceBitMut, BitGet},
     };
 
     use super::{BitSlice, BitSliceMut};
@@ -307,7 +346,8 @@ mod test {
     #[test]
     fn debug_test() {
         let mut bv = BitVec::new(80);
-        let slice = bv.slice_mut(20..40);
+        let mut slice = bv.slice_mut(20..40);
+
         println!("{:?}", slice);
         let slice = bv.slice(10..50);
         println!("{:?}", slice);
