@@ -55,6 +55,12 @@ impl<'a, Backing> BitSlice<'a, Backing> {
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
+
+    // pub fn split(&self, index: usize) -> (BitSlice<'a, Backing>, BitSlice<'a, Backing>) {
+    //     if index >= self.len() {
+    //         panic!("index is {index} but length is {}", self.len())
+    //     }
+    // }
 }
 
 impl<'a, Backing: BitGet> BitSlice<'a, Backing> {

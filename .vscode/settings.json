@@ -1,4 +1,42 @@
 {
     "docwriter.language": "English",
-    "docwriter.style": "Auto-detect"
+    "docwriter.style": "Auto-detect",
+    "editor.tokenColorCustomizations": {
+        "textMateRules": [
+            {
+                "scope": "googletest.failed",
+                "settings": {
+                    "foreground": "#f00"
+                }
+            },
+            {
+                "scope": "googletest.passed",
+                "settings": {
+                    "foreground": "#0f0"
+                }
+            },
+            {
+                "scope": "googletest.run",
+                "settings": {
+                    "foreground": "#0f0"
+                }
+            }
+        ]
+    },
+    "coverage-gutters.coverageReportFileName": "coverage/tests.xml",
+    "coverage-gutters.ignoredPathGlobs": "**/{node_modules,venv,.venv,vendor,target}/**",
+    "coverage-gutters.showLineCoverage": false,
+    "coverage-gutters.showRulerCoverage": true,
+    "coverage-gutters.coverageFileNames": [
+        "coverage/tests.xml",
+        "tests.lcov",
+        "coverage/tests.lcov",
+        "lcov.info",
+        "cov.xml",
+        "coverage.xml",
+        "jacoco.xml",
+        "coverage.cobertura.xml"
+    ],
+    "catppuccin.accentColor": "green",
+    "markiscodecoverage.searchCriteria": "coverage/tests.lcov",
 }

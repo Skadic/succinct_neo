@@ -1,4 +1,3 @@
-use core::panicking::panic;
 use std::fs::create_dir_all;
 use xtaskops::ops::{clean_files, cmd};
 
