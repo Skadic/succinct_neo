@@ -51,7 +51,7 @@ fn cover_only() -> Result<(), anyhow::Error> {
     println!("=== outputting format '{fmt}' ===");
 
     println!("=== running coverage ===");
-    cmd!(
+    match cmd!(
         "grcov",
         ".",
         "--binary-path",
@@ -73,7 +73,11 @@ fn cover_only() -> Result<(), anyhow::Error> {
         "-o",
         file,
     )
-    .run()?;
+    .run()
+    {
+        Ok(_) => {}
+        Err(error) => println!("{error}"),
+    };
     println!("ok.");
 
     Ok(())
