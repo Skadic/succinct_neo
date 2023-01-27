@@ -23,7 +23,7 @@ jobs:
     - name: Rust Cache
       uses: Swatinem/rust-cache@v2.2.0
     - name: Build Tasks
-      run: cargo build --package xtasks --verbose
+      run: cargo build --package xtask --verbose
     - name: Build Library
       run: cargo build --package succinct_neo --verbose
     - name: Run tests
