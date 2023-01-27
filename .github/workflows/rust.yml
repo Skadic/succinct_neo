@@ -12,6 +12,7 @@ env:
   CARGO_INCREMENTAL: 0
   RUSTFLAGS: -Cinstrument-coverage
   LLVM_PROFILE_FILE: cargo-test-%p-%m.profraw
+  GRCOV: "./grcov/target/release/grcov"
 
 jobs:
   build:
@@ -31,7 +32,8 @@ jobs:
     - name: Install grcov
       run: |
         rustup component add llvm-tools-preview
-        cargo install grcov
+        git clone https://github.com/mozilla/grcov
+        cargo build --manifest-path grcov/Cargo.toml --release
     - name: Generate Coverage
       run: cargo xtask cover_only lcov
     - name: Cleanup

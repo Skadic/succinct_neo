@@ -51,8 +51,9 @@ fn cover_only() -> Result<(), anyhow::Error> {
     println!("=== outputting format '{fmt}' ===");
 
     println!("=== running coverage ===");
+    let grcov_bin = std::env::var("GRCOV").unwrap_or_else(|_| "grcov".to_string());
     match cmd!(
-        "grcov",
+        &grcov_bin,
         ".",
         "--binary-path",
         "./target/debug/deps",
