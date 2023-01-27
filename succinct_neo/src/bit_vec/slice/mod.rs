@@ -138,6 +138,8 @@ mod test {
         traits::{BitModify, SliceBit, SliceBitMut},
     };
 
+    use super::{BitSlice, BitSliceMut};
+
     #[test]
     fn full_range_test() {
         let mut bv = BitVec::new(80);
@@ -269,12 +271,46 @@ mod test {
         }
 
         for (i, actual) in slice.iter().enumerate() {
-            assert_eq!((i / 5) % 2 == 0, actual, "incorrect value in mutable slice at {}", i + 20)
+            assert_eq!(
+                (i / 5) % 2 == 0,
+                actual,
+                "incorrect value in mutable slice at {}",
+                i + 20
+            )
         }
 
         let slice = bv.slice(20..40);
         for (i, actual) in slice.iter().enumerate() {
-            assert_eq!((i / 5) % 2 == 0, actual, "incorrect value in immutable slice {}", i + 20)
+            assert_eq!(
+                (i / 5) % 2 == 0,
+                actual,
+                "incorrect value in immutable slice {}",
+                i + 20
+            )
         }
+    }
+
+    #[test]
+    #[should_panic]
+    fn slice_invalid_bound_test() {
+        let bv = BitVec::new(80);
+        BitSlice::new(&bv, 10, 9);
+    }
+
+    #[test]
+    #[should_panic]
+    fn mut_slice_invalid_bound_test() {
+        let mut bv = BitVec::new(80);
+        BitSliceMut::new(&mut bv, 10, 9);
+    }
+
+    #[test]
+    fn debug_test() {
+        let mut bv = BitVec::new(80);
+        let slice = bv.slice_mut(20..40);
+        println!("{:?}", slice);
+        let slice = bv.slice(10..50);
+        println!("{:?}", slice);
+        println!("{:?}", bv.iter());
     }
 }
