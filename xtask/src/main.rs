@@ -1,3 +1,4 @@
+use core::panicking::panic;
 use std::fs::create_dir_all;
 use xtaskops::ops::{clean_files, cmd};
 
@@ -62,21 +63,25 @@ fn cover_only() -> Result<(), anyhow::Error> {
         fmt,
         "--branch",
         "--ignore-not-existing",
-        "--ignore",
-        "../*",
-        "--ignore",
-        "/*",
+        //"--ignore",
+        //"../*",
+        //"--ignore",
+        //"/*",
         "--ignore",
         "xtask/*",
-        "--ignore",
-        "*/src/tests/*",
+        //"--ignore",
+        //"*/src/tests/*",
         "-o",
         file,
     )
     .run()
     {
         Ok(_) => {}
-        Err(error) => println!("{error}"),
+        Err(error) => 
+        {
+            eprintln!("{error}");
+            panic!("error generating coverage");
+        },
     };
     println!("ok.");
 
