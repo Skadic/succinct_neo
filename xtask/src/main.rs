@@ -4,12 +4,32 @@ use xtaskops::ops::{clean_files, cmd};
 fn main() -> Result<(), anyhow::Error> {
     match std::env::args().nth(1).as_deref() {
         Some("cover") => cover(),
+        Some("test_instr") => test_instr(),
+        Some("cover_only") => cover_only(),
+        Some("clean") => clean(),
         _ => Ok(()),
     }
 }
 
 // https://blog.rng0.io/how-to-do-code-coverage-in-rust
 fn cover() -> Result<(), anyhow::Error> {
+    test_instr()?;
+    cover_only()?;
+    clean()
+}
+
+fn test_instr() -> Result<(), anyhow::Error> {
+    println!("=== running tests ===");
+    cmd!("cargo", "test", "--package", "succinct_neo")
+        .env("CARGO_INCREMENTAL", "0")
+        .env("RUSTFLAGS", "-Cinstrument-coverage")
+        .env("LLVM_PROFILE_FILE", "cargo-test-%p-%m.profraw")
+        .run()?;
+    println!("ok.");
+    Ok(())
+}
+
+fn cover_only() -> Result<(), anyhow::Error> {
     create_dir_all("coverage")?;
 
     let (fmt, file_ext) = match std::env::args()
@@ -31,14 +51,6 @@ fn cover() -> Result<(), anyhow::Error> {
     println!("=== outputting format '{fmt}' ===");
 
     println!("=== running coverage ===");
-    cmd!("cargo", "test", "--package", "succinct_neo")
-        .env("CARGO_INCREMENTAL", "0")
-        .env("RUSTFLAGS", "-Cinstrument-coverage")
-        .env("LLVM_PROFILE_FILE", "cargo-test-%p-%m.profraw")
-        .run()?;
-    println!("ok.");
-
-    println!("=== generating report ===");
     cmd!(
         "grcov",
         ".",
@@ -64,9 +76,12 @@ fn cover() -> Result<(), anyhow::Error> {
     .run()?;
     println!("ok.");
 
+    Ok(())
+}
+
+fn clean() -> Result<(), anyhow::Error> {
     println!("=== cleaning up ===");
     clean_files("**/*.profraw")?;
     println!("ok.");
-
     Ok(())
 }

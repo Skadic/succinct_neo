@@ -9,6 +9,9 @@ on:
 env:
   CARGO_TERM_COLOR: always
   CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+  CARGO_INCREMENTAL: 0
+  RUSTFLAGS: -Cinstrument-coverage
+  LLVM_PROFILE_FILE: cargo-test-%p-%m.profraw
 
 jobs:
   build:
@@ -20,11 +23,13 @@ jobs:
     - name: Rust Cache
       uses: Swatinem/rust-cache@v2.2.0
     - name: Build
-      run: cargo build --verbose
+      run: cargo build --package succinct_neo --verbose
     - name: Run tests
-      run: cargo test --verbose
+      run: cargo xtask test_instr
     - name: Generate Coverage
-      run: cargo xtask cover lcov
+      run: cargo xtask cover_only lcov
+    - name: Cleanup
+      run: cargo xtask clean
     - name: Send coverage to Codecov
       run: |
         curl -Os https://uploader.codecov.io/latest/linux/codecov
