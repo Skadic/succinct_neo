@@ -12,7 +12,7 @@ env:
   CARGO_INCREMENTAL: 0
   RUSTFLAGS: -Cinstrument-coverage
   LLVM_PROFILE_FILE: cargo-test-%p-%m.profraw
-  GRCOV: "./grcov/target/release/grcov"
+  GRCOV: "./grcov"
 
 jobs:
   build:
@@ -21,21 +21,22 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - name: Clone grcov
-      run: |
-        rustup component add llvm-tools-preview
-        git clone https://github.com/mozilla/grcov
+    - name: Install LLVM Tools
+      run: rustup component add llvm-tools-preview
+    - name: Download grcov Release
+      uses: robinraju/release-downloader@v1.7
+      with:
+        latest: true
+        repository: "mozilla/grcov" 
+        fileName: "grcov-x86_64-unknown-linux-gnu.tar.bz2"
+    - name: Unzip grcov
+      run: "tar -xf grcov-x86_64-unknown-linux-gnu.tar.bz2"
     - name: Rust Cache
       uses: Swatinem/rust-cache@v2.2.0
-      with:
-        cache-directories: |
-          ./grcov/target
     - name: Build Tasks
       run: cargo build --package xtask --verbose
     - name: Build Library
       run: cargo build --package succinct_neo --verbose
-    - name: Build grcov
-      run: cargo build --manifest-path grcov/Cargo.toml --release
     - name: Run tests
       run: cargo xtask test_instr
     - name: Generate Coverage
