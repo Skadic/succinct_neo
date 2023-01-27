@@ -12,6 +12,24 @@ fn main() -> Result<(), anyhow::Error> {
 fn cover() -> Result<(), anyhow::Error> {
     create_dir_all("coverage")?;
 
+    let (fmt, file_ext) = match std::env::args()
+        .nth(2)
+        .as_deref()
+        .map(str::to_ascii_lowercase)
+        .as_deref()
+    {
+        Some("xml") | Some("cobertura") => ("cobertura", "xml"),
+        Some("lcov") => ("lcov", "lcov"),
+        Some(s) => {
+            eprintln!("Warning: invalid format: {s}");
+            ("cobertura", "xml")
+        }
+        None => ("cobertura", "xml"),
+    };
+    let file = format!("coverage/tests.{file_ext}");
+
+    println!("=== outputting format '{fmt}' ===");
+
     println!("=== running coverage ===");
     cmd!("cargo", "test", "--package", "succinct_neo")
         .env("CARGO_INCREMENTAL", "0")
@@ -21,7 +39,6 @@ fn cover() -> Result<(), anyhow::Error> {
     println!("ok.");
 
     println!("=== generating report ===");
-    let (fmt, file) = ("cobertura", "coverage/tests.xml");
     cmd!(
         "grcov",
         ".",
