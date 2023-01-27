@@ -21,6 +21,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+    - name: Clone grcov
+      run: |
+        rustup component add llvm-tools-preview
+        git clone https://github.com/mozilla/grcov
     - name: Rust Cache
       uses: Swatinem/rust-cache@v2.2.0
       with:
@@ -30,13 +34,10 @@ jobs:
       run: cargo build --package xtask --verbose
     - name: Build Library
       run: cargo build --package succinct_neo --verbose
+    - name: Build grcov
+      run: cargo build --manifest-path grcov/Cargo.toml --release
     - name: Run tests
       run: cargo xtask test_instr
-    - name: Install grcov
-      run: |
-        rustup component add llvm-tools-preview
-        git clone https://github.com/mozilla/grcov
-        cargo build --manifest-path grcov/Cargo.toml --release
     - name: Generate Coverage
       run: cargo xtask cover_only lcov
     - name: Cleanup
