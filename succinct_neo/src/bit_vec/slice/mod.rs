@@ -61,8 +61,8 @@ impl<'a, Backing: BitGet> BitSlice<'a, Backing> {
     pub fn iter(&self) -> Iter<&'a Backing> {
         Iter {
             backing: self.backing,
-            current: 0,
-            end: self.len(),
+            current: self.start,
+            end: self.end,
         }
     }
 }
@@ -95,6 +95,16 @@ impl<'a, Backing> BitSliceMut<'a, Backing> {
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
+    }
+}
+
+impl<'a, Backing: BitGet> BitSliceMut<'a, Backing> {
+    pub fn iter(&self) -> Iter<&Self> {
+        Iter {
+            backing: self,
+            current: 0,
+            end: self.len(),
+        }
     }
 }
 
@@ -227,6 +237,38 @@ mod test {
 
         for (i, (expect, actual)) in bv.slice(20..80).into_iter().zip(bv.slice(20..)).enumerate() {
             assert_eq!(expect, actual, "incorrect value at index {}", i + 20)
+        }
+    }
+
+    #[test]
+    fn is_empty_test() {
+        let mut bv = BitVec::new(80);
+
+        let slice = bv.slice(40..40);
+        assert_eq!(0, slice.len(), "immutable slice not empty");
+        assert!(slice.is_empty(), "immutable slice not empty");
+
+        let slice = bv.slice_mut(40..40);
+        assert_eq!(0, slice.len(), "mutable slice not empty");
+        assert!(slice.is_empty(), "mutable slice not empty")
+    }
+
+    #[test]
+    fn iter_test() {
+        let mut bv = BitVec::new(80);
+
+        let mut slice = bv.slice_mut(20..40);
+        for i in 0..slice.len() {
+            slice.set(i, (i / 5) % 2 == 0)
+        }
+
+        for (i, actual) in slice.iter().enumerate() {
+            assert_eq!((i / 5) % 2 == 0, actual, "incorrect value in mutable slice at {}", i + 20)
+        }
+
+        let slice = bv.slice(20..40);
+        for (i, actual) in slice.iter().enumerate() {
+            assert_eq!((i / 5) % 2 == 0, actual, "incorrect value in immutable slice {}", i + 20)
         }
     }
 }
