@@ -1,4 +1,3 @@
-use core::panicking::panic;
 use std::fs::create_dir_all;
 use xtaskops::ops::{clean_files, cmd};
 
@@ -52,8 +51,9 @@ fn cover_only() -> Result<(), anyhow::Error> {
     println!("=== outputting format '{fmt}' ===");
 
     println!("=== running coverage ===");
+    let grcov_bin = std::env::var("GRCOV").unwrap_or_else(|_| "grcov".to_string());
     match cmd!(
-        "grcov",
+        &grcov_bin,
         ".",
         "--binary-path",
         "./target/debug/deps",
@@ -63,14 +63,16 @@ fn cover_only() -> Result<(), anyhow::Error> {
         fmt,
         "--branch",
         "--ignore-not-existing",
-        //"--ignore",
-        //"../*",
-        //"--ignore",
-        //"/*",
+        "--ignore",
+        "../*",
+        "--ignore",
+        "/*",
         "--ignore",
         "xtask/*",
-        //"--ignore",
-        //"*/src/tests/*",
+        "--ignore",
+        "grcov/*",
+        "--ignore",
+        "*/src/tests/*",
         "-o",
         file,
     )
