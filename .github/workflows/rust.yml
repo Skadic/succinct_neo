@@ -28,8 +28,6 @@ jobs:
       run: cargo build --package succinct_neo --verbose
     - name: Run tests
       run: cargo xtask test_instr
-    - name: Show files
-      run: tree .
     - name: Install grcov
       run: |
         rustup component add llvm-tools-preview
