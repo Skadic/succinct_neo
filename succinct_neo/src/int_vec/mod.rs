@@ -200,6 +200,12 @@ impl Iterator for IntoIter {
     }
 }
 
+impl ExactSizeIterator for IntoIter {
+    fn len(&self) -> usize {
+        self.v.len() - self.i 
+    }
+}
+
 pub struct Iter<'a> {
     i: usize,
     v: &'a IntVec,
@@ -216,6 +222,12 @@ impl Iterator for Iter<'_> {
         let res = self.v.get(self.i);
         self.i += 1;
         Some(res)
+    }
+}
+
+impl ExactSizeIterator for Iter<'_> {
+    fn len(&self) -> usize {
+        self.v.len() - self.i
     }
 }
 
