@@ -1,4 +1,4 @@
-use crate::traits::{BitGet, SliceBit};
+use crate::traits::BitGet;
 
 mod trait_impls;
 
@@ -174,7 +174,7 @@ impl<Backing> Iter<Backing> {
 mod test {
     use crate::{
         bit_vec::BitVec,
-        traits::{BitModify, SliceBit, SliceBitMut, BitGet},
+        traits::{BitModify, SliceBit, SliceBitMut},
     };
 
     use super::{BitSlice, BitSliceMut};
@@ -206,12 +206,16 @@ mod test {
     fn range_test() {
         let mut bv = BitVec::new(80);
         let mut slice = bv.slice_mut(20..40);
+        assert_eq!(20, slice.start, "incorrect mutable slice start");
+        assert_eq!(40, slice.end, "incorrect mutable slice end");
 
         for i in 0..slice.len() {
             slice.set(i, i % 2 == 0);
         }
 
         let slice = bv.slice(20..40);
+        assert_eq!(20, slice.start, "incorrect immutable slice start");
+        assert_eq!(40, slice.end, "incorrect immutable slice end");
         for (i, (expect, actual)) in bv.iter().skip(20).zip(slice).enumerate() {
             assert_eq!(
                 expect,
@@ -352,5 +356,54 @@ mod test {
         let slice = bv.slice(10..50);
         println!("{slice:?}");
         println!("{:?}", bv.iter());
+    }
+
+    #[test]
+    fn split_test() {
+        let mut bv = BitVec::new(80);
+        for i in 0..bv.len() {
+            bv.set(i, i % 2 == 0)
+        }
+        let slice = bv.slice(20..40);
+
+        let mut bv2 = bv.clone();
+
+        let (l, r) = slice.split_at(10);
+        let slice_left = bv.slice(20..30);
+        let slice_right = bv.slice(30..40);
+        assert_eq!(
+            slice_left, l,
+            "left-split part of immutable slice not the same"
+        );
+        assert_eq!(
+            slice_right, r,
+            "right-split part of immutable slice not the same"
+        );
+
+        let mut slice = bv.slice_mut(20..40);
+
+        let (l, r) = slice.split_at(10);
+        let slice_left = bv2.slice(20..30);
+        let slice_right = bv2.slice(30..40);
+        assert_eq!(
+            slice_left, l,
+            "left-split part of mutable slice not the same"
+        );
+        assert_eq!(
+            slice_right, r,
+            "right-split part of mutable slice not the same"
+        );
+
+        let (l, r) = slice.split_at_mut(10);
+        let slice_left = bv2.slice_mut(20..30);
+        assert_eq!(
+            slice_left, l,
+            "mutable left-split part of mutable slice not the same"
+        );
+        let slice_right = bv2.slice_mut(30..40);
+        assert_eq!(
+            slice_right, r,
+            "mutable right-split part of mutable slice not the same"
+        );
     }
 }
