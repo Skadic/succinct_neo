@@ -52,6 +52,14 @@ fn cover_only() -> Result<(), anyhow::Error> {
 
     println!("=== running coverage ===");
     let grcov_bin = std::env::var("GRCOV").unwrap_or_else(|_| "grcov".to_string());
+
+    match cmd!(&grcov_bin, "--version").run() {
+        Ok(_) => {},
+        Err(_) => {
+            panic!("error running grcov, is it installed?")
+        }
+    }
+
     match cmd!(
         &grcov_bin,
         ".",
