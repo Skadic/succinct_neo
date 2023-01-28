@@ -1,4 +1,6 @@
-use std::ops::{Range, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive};
+use std::ops::{
+    Bound, Range, RangeBounds, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive,
+};
 
 use crate::traits::{BitGet, BitModify, SliceBit, SliceBitMut};
 
@@ -161,121 +163,48 @@ impl<'a, 'b, Backing: BitGet> IntoIterator for &'a BitSliceMut<'b, Backing> {
 
 // ------------------ SLICE BITS ------------------
 
-impl<T> SliceBit<RangeFull> for T
+impl<T, R> SliceBit<R> for T
 where
     T: BitGet,
+    R: RangeBounds<usize>,
     for<'a> &'a T: IntoIterator,
     for<'a> <&'a T as IntoIterator>::IntoIter: ExactSizeIterator,
 {
-    fn slice(&self, _: RangeFull) -> BitSlice<Self> {
-        BitSlice::new(self, 0, self.into_iter().len())
+    fn slice(&self, r: R) -> BitSlice<Self> {
+        let start = match r.start_bound() {
+            Bound::Excluded(&s) => s + 1,
+            Bound::Included(&s) => s,
+            Bound::Unbounded => 0,
+        };
+        let end = match r.end_bound() {
+            Bound::Excluded(&e) => e,
+            Bound::Included(&e) => e + 1,
+            Bound::Unbounded => self.into_iter().len(),
+        };
+
+        BitSlice::new(self, start, end)
     }
 }
 
-impl<T> SliceBit<RangeFrom<usize>> for T
+impl<T, R> SliceBitMut<R> for T
 where
-    T: BitGet,
+    T: BitModify,
+    R: RangeBounds<usize>,
     for<'a> &'a T: IntoIterator,
     for<'a> <&'a T as IntoIterator>::IntoIter: ExactSizeIterator,
 {
-    fn slice(&self, range: RangeFrom<usize>) -> BitSlice<Self> {
-        BitSlice::new(self, range.start, self.into_iter().len())
+    fn slice_mut(&mut self, r: R) -> BitSliceMut<Self> {
+        let start = match r.start_bound() {
+            Bound::Excluded(&s) => s + 1,
+            Bound::Included(&s) => s,
+            Bound::Unbounded => 0,
+        };
+        let end = match r.end_bound() {
+            Bound::Excluded(&e) => e,
+            Bound::Included(&e) => e + 1,
+            Bound::Unbounded => self.into_iter().len(),
+        };
+
+        BitSliceMut::new(self, start, end)
     }
 }
-
-impl<T> SliceBit<Range<usize>> for T
-where
-    T: BitGet,
-{
-    fn slice(&self, range: Range<usize>) -> BitSlice<Self> {
-        BitSlice::new(self, range.start, range.end)
-    }
-}
-
-impl<T> SliceBit<RangeTo<usize>> for T
-where
-    T: BitGet,
-{
-    fn slice(&self, range: RangeTo<usize>) -> BitSlice<Self> {
-        BitSlice::new(self, 0, range.end)
-    }
-}
-
-impl<T> SliceBit<RangeToInclusive<usize>> for T
-where
-    T: BitGet,
-{
-    fn slice(&self, range: RangeToInclusive<usize>) -> BitSlice<Self> {
-        BitSlice::new(self, 0, range.end + 1)
-    }
-}
-
-impl<T> SliceBit<RangeInclusive<usize>> for T
-where
-    T: BitGet,
-{
-    fn slice(&self, range: RangeInclusive<usize>) -> BitSlice<Self> {
-        BitSlice::new(self, *range.start(), *range.end() + 1)
-    }
-}
-
-impl<T> SliceBitMut<RangeFull> for T
-where
-    T: BitModify,
-    for<'a> &'a T: IntoIterator,
-    for<'a> <&'a T as IntoIterator>::IntoIter: ExactSizeIterator,
-{
-    fn slice_mut(&mut self, _: RangeFull) -> BitSliceMut<Self> {
-        let len = self.into_iter().len();
-        BitSliceMut::new(self, 0, len)
-    }
-}
-
-impl<T> SliceBitMut<RangeFrom<usize>> for T
-where
-    T: BitModify,
-    for<'a> &'a T: IntoIterator,
-    for<'a> <&'a T as IntoIterator>::IntoIter: ExactSizeIterator,
-{
-    fn slice_mut(&mut self, range: RangeFrom<usize>) -> BitSliceMut<Self> {
-        let len = self.into_iter().len();
-        BitSliceMut::new(self, range.start, len)
-    }
-}
-
-impl<T> SliceBitMut<Range<usize>> for T
-where
-    T: BitModify,
-{
-    fn slice_mut(&mut self, range: Range<usize>) -> BitSliceMut<Self> {
-        BitSliceMut::new(self, range.start, range.end)
-    }
-}
-
-impl<T> SliceBitMut<RangeTo<usize>> for T
-where
-    T: BitModify,
-{
-    fn slice_mut(&mut self, range: RangeTo<usize>) -> BitSliceMut<Self> {
-        BitSliceMut::new(self, 0, range.end + 1)
-    }
-}
-
-impl<T> SliceBitMut<RangeToInclusive<usize>> for T
-where
-    T: BitModify,
-{
-    fn slice_mut(&mut self, range: RangeToInclusive<usize>) -> BitSliceMut<Self> {
-        BitSliceMut::new(self, 0, range.end + 1)
-    }
-}
-
-impl<T> SliceBitMut<RangeInclusive<usize>> for T
-where
-    T: BitModify,
-{
-    fn slice_mut(&mut self, range: RangeInclusive<usize>) -> BitSliceMut<Self> {
-        BitSliceMut::new(self, *range.start(), *range.end())
-    }
-}
-
