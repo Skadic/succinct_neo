@@ -252,6 +252,7 @@ mod test {
         assert!(!v.is_empty(), "int vec not empty");
 
         assert_eq!(0x4321, v.raw_data()[0], "backing data incorrect");
+        println!("{v:?}")
     }
 
     #[test]
@@ -311,6 +312,7 @@ mod test {
         }
 
         let mut iter = v.iter();
+        assert_eq!(20, iter.len(), "incorrect iterator length");
         for (expect, actual) in (0..).zip(&mut iter) {
             assert_eq!(expect, actual, "value at index {expect} incorrect")
         }
@@ -329,25 +331,27 @@ mod test {
             i = (i << 1) | 1;
         }
 
-        let mut a = test_v.into_iter();
-        for (expect, actual) in (&mut a).zip(v) {
+        let mut iter = v.into_iter();
+        assert_eq!(10, iter.len(), "incorrect iterator length");
+        for (expect, actual) in test_v.into_iter().zip(&mut iter) {
             assert_eq!(expect, actual);
         }
 
-        assert_eq!(None, a.next());
+        assert_eq!(None, iter.next());
+    }
+
+    #[test]
+    #[should_panic]
+    fn get_out_of_bounds_test() {
+        let v = IntVec::new(7);
+        v.get(10);
     }
 
     #[test]
     #[should_panic]
     fn set_out_of_bounds_test() {
         let mut v = IntVec::new(7);
-        let mut test_v = Vec::new();
-        for i in 0..30 {
-            v.push(3 * i);
-            test_v.push(3 * i);
-        }
-
-        v.set(30, 10);
+        v.set(10, 10);
     }
 
     #[test]
