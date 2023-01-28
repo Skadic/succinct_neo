@@ -226,6 +226,23 @@ mod test {
     use super::IntVec;
 
     #[test]
+    fn basics_test() {
+        let mut v = IntVec::new(4);
+        assert_eq!(0, v.len(), "int vec size not 0");
+        assert!(v.is_empty(), "int vec not empty");
+
+        v.push(1);
+        v.push(2);
+        v.push(3);
+        v.push(4);
+
+        assert_eq!(4, v.len(), "int vec size not 4");
+        assert!(!v.is_empty(), "int vec not empty");
+
+        assert_eq!(0x4321, v.raw_data()[0], "backing data incorrect");
+    }
+
+    #[test]
     fn push_test() {
         let mut v = IntVec::new(23);
         v.push(1);
@@ -275,6 +292,22 @@ mod test {
 
     #[test]
     fn iter_test() {
+        let mut v = IntVec::new(8);
+
+        for i in 0..20 {
+            v.push(i)
+        }
+
+        let mut iter = v.iter();
+        for (expect, actual) in (0..).zip(&mut iter) {
+            assert_eq!(expect, actual, "value at index {expect} incorrect")
+        }
+
+        assert_eq!(None, iter.next());
+    }
+
+    #[test]
+    fn into_iter_test() {
         let mut v = IntVec::new(12);
         let mut test_v = Vec::new();
         let mut i = 1;
@@ -284,9 +317,12 @@ mod test {
             i = (i << 1) | 1;
         }
 
-        for (expect, actual) in test_v.into_iter().zip(v) {
+        let mut a = test_v.into_iter();
+        for (expect, actual) in (&mut a).zip(v) {
             assert_eq!(expect, actual);
         }
+
+        assert_eq!(None, a.next());
     }
 
     #[test]
@@ -304,15 +340,16 @@ mod test {
 
     #[test]
     #[should_panic]
-    fn push_too_large_number_test() {
+    fn set_too_large_number_test() {
         let mut v = IntVec::new(7);
-        v.push(1000);
+        v.push(0);
+        v.set(0, 100000000);
     }
 
     #[test]
     #[should_panic]
-    fn set_too_large_number_test() {
+    fn push_too_large_number_test() {
         let mut v = IntVec::new(7);
-        v.push(1000);
+        v.push(100000000);
     }
 }
