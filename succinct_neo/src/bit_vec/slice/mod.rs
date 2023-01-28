@@ -66,7 +66,7 @@ impl<'a, Backing: BitGet> BitSlice<'a, Backing> {
         }
     }
 
-    pub fn split(&self, index: usize) -> (BitSlice<'_, Backing>, BitSlice<'_, Backing>) {
+    pub fn split_at(&self, index: usize) -> (BitSlice<'_, Backing>, BitSlice<'_, Backing>) {
         if index >= self.len() {
             panic!("index is {index} but length is {}", self.len())
         }
@@ -118,7 +118,7 @@ impl<'a, Backing: BitGet> BitSliceMut<'a, Backing> {
         }
     }
 
-    pub fn split(&self, index: usize) -> (BitSlice<'_, Backing>, BitSlice<'_, Backing>) {
+    pub fn split_at(&self, index: usize) -> (BitSlice<'_, Backing>, BitSlice<'_, Backing>) {
         if index >= self.len() {
             panic!("index is {index} but length is {}", self.len())
         }
@@ -132,7 +132,7 @@ impl<'a, Backing: BitGet> BitSliceMut<'a, Backing> {
         )
     }
 
-    pub fn split_mut(
+    pub fn split_at_mut(
         &mut self,
         index: usize,
     ) -> (BitSliceMut<'_, Backing>, BitSliceMut<'_, Backing>) {
@@ -346,11 +346,11 @@ mod test {
     #[test]
     fn debug_test() {
         let mut bv = BitVec::new(80);
-        let mut slice = bv.slice_mut(20..40);
+        let slice = bv.slice_mut(20..40);
 
-        println!("{:?}", slice);
+        println!("{slice:?}");
         let slice = bv.slice(10..50);
-        println!("{:?}", slice);
+        println!("{slice:?}");
         println!("{:?}", bv.iter());
     }
 }
