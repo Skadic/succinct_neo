@@ -72,8 +72,8 @@ impl<'a, Backing: BitGet> BitSlice<'a, Backing> {
         }
 
         (
-            BitSlice::new(self.backing, self.start, index),
-            BitSlice::new(self.backing, index, self.end),
+            BitSlice::new(self.backing, self.start, self.start + index),
+            BitSlice::new(self.backing, self.start + index, self.end),
         )
     }
 }
@@ -127,8 +127,8 @@ impl<'a, Backing: BitGet> BitSliceMut<'a, Backing> {
         // In addition we are only removing the mutable part of the reference, so this is fine
         let ptr = unsafe { (self.backing as *const Backing).as_ref().unwrap() };
         (
-            BitSlice::new(ptr, self.start, index),
-            BitSlice::new(ptr, index, self.end),
+            BitSlice::new(ptr, self.start, self.start + index),
+            BitSlice::new(ptr, self.start + index, self.end),
         )
     }
 
@@ -146,8 +146,8 @@ impl<'a, Backing: BitGet> BitSliceMut<'a, Backing> {
         // Also, since the slices we create do not overlap, it is no problem to have two mutable references to the backing datastructure
         unsafe {
             (
-                BitSliceMut::new(ptr.as_mut().unwrap(), self.start, index),
-                BitSliceMut::new(ptr.as_mut().unwrap(), index, self.end),
+                BitSliceMut::new(ptr.as_mut().unwrap(), self.start, self.start + index),
+                BitSliceMut::new(ptr.as_mut().unwrap(), self.start + index, self.end),
             )
         }
     }
