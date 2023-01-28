@@ -51,9 +51,9 @@ fn cover_only() -> Result<(), anyhow::Error> {
     println!("=== outputting format '{fmt}' ===");
 
     let grcov_bin = std::env::var("GRCOV").unwrap_or_else(|_| "grcov".to_string());
-    
+
     match cmd!(&grcov_bin, "--version").run() {
-        Ok(_) => {},
+        Ok(_) => {}
         Err(_) => {
             panic!("error running grcov, is it installed?")
         }
@@ -87,11 +87,10 @@ fn cover_only() -> Result<(), anyhow::Error> {
     .run()
     {
         Ok(_) => {}
-        Err(error) => 
-        {
+        Err(error) => {
             eprintln!("{error}");
             panic!("error generating coverage");
-        },
+        }
     };
     println!("ok.");
 

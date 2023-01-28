@@ -202,7 +202,7 @@ impl Iterator for IntoIter {
 
 impl ExactSizeIterator for IntoIter {
     fn len(&self) -> usize {
-        self.v.len() - self.i 
+        self.v.len() - self.i
     }
 }
 

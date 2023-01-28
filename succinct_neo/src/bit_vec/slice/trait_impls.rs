@@ -210,7 +210,10 @@ where
 #[cfg(test)]
 mod test {
     use crate::{
-        bit_vec::BitVec,
+        bit_vec::{
+            slice::{BitSlice, BitSliceMut},
+            BitVec,
+        },
         traits::{BitGet, BitModify, SliceBit, SliceBitMut},
     };
 
@@ -283,7 +286,12 @@ mod test {
             .zip(bv.slice(20..=39))
             .enumerate()
         {
-            assert_eq!(expect, actual, "incorrect value at index {} (immut)", i + 20)
+            assert_eq!(
+                expect,
+                actual,
+                "incorrect value at index {} (immut)",
+                i + 20
+            )
         }
 
         let bv2 = bv.clone();
@@ -367,15 +375,17 @@ mod test {
     fn get_out_of_bounds_test() {
         let bv = BitVec::new(80);
         let slice = bv.slice(20..40);
-        slice.get(20);
+        // This is just to get coverage in the trait
+        <&BitSlice<BitVec> as BitGet>::get(&&slice, 20);
     }
 
     #[test]
     #[should_panic]
     fn get_out_of_bounds_mut_test() {
         let mut bv = BitVec::new(80);
-        let slice = bv.slice_mut(20..40);
-        slice.get(20);
+        let mut slice = bv.slice_mut(20..40);
+        // This is just to get coverage in the trait
+        <&mut BitSliceMut<BitVec> as BitGet>::get(&&mut slice, 20);
     }
 
     #[test]

@@ -179,7 +179,6 @@ mod test {
 
     use super::{BitSlice, BitSliceMut};
 
-
     #[test]
     fn is_empty_test() {
         let mut bv = BitVec::new(80);
