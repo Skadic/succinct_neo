@@ -165,6 +165,16 @@ mod test {
     use super::BitVec;
 
     #[test]
+    fn basics_test() {
+        let bv = BitVec::new(80);
+        assert_eq!(80, bv.len(), "length incorrect");
+        assert!(!bv.is_empty(), "bv empty despite length being 80");
+        let bv = BitVec::new(0);
+        assert_eq!(0, bv.len(), "length incorrect");
+        assert!(bv.is_empty(), "bv not empty despite length being 0");
+    }
+
+    #[test]
     fn set_get_test() {
         let mut bv = BitVec::new(160);
         for i in (0..bv.len()).step_by(3) {
@@ -210,5 +220,26 @@ mod test {
         for (i, v) in iter.enumerate() {
             assert_eq!(i % 3 != 0, v);
         }
+    }
+
+    #[test]
+    #[should_panic]
+    fn get_out_of_bounds_mut_test() {
+        let bv = BitVec::new(20);
+        bv.get(20);
+    }
+
+    #[test]
+    #[should_panic]
+    fn set_out_of_bounds_test() {
+        let mut bv = BitVec::new(20);
+        bv.set(20, true);
+    }
+
+    #[test]
+    #[should_panic]
+    fn flip_out_of_bounds_test() {
+        let mut bv = BitVec::new(20);
+        bv.flip(20);
     }
 }
