@@ -14,6 +14,36 @@ impl<B1: BitGet, B2: BitGet> PartialEq<BitSlice<'_, B2>> for BitSlice<'_, B1> {
     }
 }
 
+impl<B1: BitGet, B2: BitGet> PartialEq<BitSliceMut<'_, B2>> for BitSliceMut<'_, B1> {
+    fn eq(&self, other: &BitSliceMut<'_, B2>) -> bool {
+        if self.len() != other.len() {
+            return false;
+        }
+
+        Iterator::eq(self.into_iter(), other.into_iter())
+    }
+}
+
+impl<B1: BitGet, B2: BitGet> PartialEq<BitSliceMut<'_, B2>> for BitSlice<'_, B1> {
+    fn eq(&self, other: &BitSliceMut<'_, B2>) -> bool {
+        if self.len() != other.len() {
+            return false;
+        }
+
+        Iterator::eq(self.into_iter(), other.into_iter())
+    }
+}
+
+impl<B1: BitGet, B2: BitGet> PartialEq<BitSlice<'_, B2>> for BitSliceMut<'_, B1> {
+    fn eq(&self, other: &BitSlice<'_, B2>) -> bool {
+        if self.len() != other.len() {
+            return false;
+        }
+
+        Iterator::eq(self.into_iter(), other.into_iter())
+    }
+}
+
 impl<Backing: BitGet> BitGet for BitSlice<'_, Backing> {
     unsafe fn get_unchecked(&self, index: usize) -> bool {
         self.backing.get_unchecked(self.start + index)
