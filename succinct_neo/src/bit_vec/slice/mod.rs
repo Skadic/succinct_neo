@@ -17,14 +17,14 @@ mod trait_impls;
 /// use succinct_neo::traits::{BitGet, BitModify, SliceBitMut};
 ///
 /// let mut bv = BitVec::new(16);
-/// let mut slice = bv.slice_mut(8..10);
+/// let mut slice = bv.slice_bits_mut(8..10);
 /// assert_eq!(2, slice.len());
 ///
-/// slice.set(0, true);
+/// slice.set_bit(0, true);
 /// // We can't access the original bitvector if the (mutably borrowing) slice is still around.
 /// drop(slice);
 ///
-/// assert_eq!(true, bv.get(8));
+/// assert_eq!(true, bv.get_bit(8));
 /// ```
 #[derive(Debug)]
 pub struct BitSlice<'a, Backing> {
