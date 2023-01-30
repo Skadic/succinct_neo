@@ -2,7 +2,7 @@ use crate::traits::{BitGet, BitModify};
 
 mod trait_impls;
 
-/// A view into a segment of a type which supports `BitGet` and `BitModify` if the backing type supports it respectively.
+/// A view into a segment of a type which supports `BitGet` and/or `BitModify` if the backing type supports it respectively.
 ///
 /// Properties:
 ///
@@ -34,6 +34,26 @@ pub struct BitSlice<Backing> {
 }
 
 impl<Backing> BitSlice<Backing> {
+    /// Creates a new bit slice, representing a view into the backing data structure. Usually you
+    /// would use the methods provided by `SliceBit` instead.
+    ///
+    /// # Arguments
+    ///
+    /// * `backing` - The backing data structure for this slice
+    /// * `start` - The (inclusive) start index of this slice inside the backing data
+    /// * `end` - The (exclusive) end index of this slice inside the backing data
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use succinct_neo::bit_vec::{BitVec, slice::BitSlice};
+    /// use succinct_neo::traits::BitGet;
+    ///
+    /// let bv = BitVec::new(16);
+    /// let slice = BitSlice::new(&bv, 4, 10);
+    ///
+    /// assert_eq!(false, slice.get_bit(3));
+    /// ```
     pub fn new(backing: Backing, start: usize, end: usize) -> Self {
         debug_assert!(
             start <= end,
@@ -46,23 +66,50 @@ impl<Backing> BitSlice<Backing> {
         }
     }
 
+    /// The length of this bit vector. In other words, this just means that the last index of this
+    /// slice is `self.len()-1`. This is *not* the number of ones in this slice.
     #[inline]
     pub fn len(&self) -> usize {
         self.end - self.start
     }
 
+    /// Returns true if there is no space for any bits in this slice, i.e. the slice's length is
+    /// zero.
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
+    /// Gets a reference to the backing data.
     #[inline]
     pub fn backing(&self) -> &Backing {
         &self.backing
     }
+
+    /// Gets a mutable reference to the backing data.
+    #[inline]
+    pub fn backing_mut(&mut self) -> &mut Backing {
+        &mut self.backing
+    }
 }
 
 impl<Backing: BitGet> BitSlice<Backing> {
+    /// Gets an iterator over this slice's contents, returning booleans.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use succinct_neo::bit_vec::{BitVec, slice::BitSlice};
+    /// use succinct_neo::traits::{BitGet, BitModify, SliceBit};
+    ///
+    /// let mut bv = BitVec::new(16);
+    /// bv.set_bit(6, true);
+    /// let slice = bv.slice_bits_mut(5..8);
+    ///
+    /// for (i, value) in slice.iter().enumerate() {
+    ///     assert_eq!(i == 1, value);
+    /// }
+    /// ```
     pub fn iter(&self) -> Iter<&Backing> {
         Iter {
             backing: &self.backing,
@@ -71,6 +118,29 @@ impl<Backing: BitGet> BitSlice<Backing> {
         }
     }
 
+    /// Splits the bit slice into two disjunct parts at a given index, returning read-only views into each
+    /// part.
+    ///
+    /// # Arguments
+    ///
+    /// * `index` - The index to split at.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use succinct_neo::bit_vec::{BitVec, slice::BitSlice};
+    /// use succinct_neo::traits::{BitGet, SliceBit};
+    ///
+    /// let bv = BitVec::new(16);
+    /// let slice = bv.slice_bits(..);
+    ///
+    /// let (left_part, right_part) = slice.split_at(4);
+    ///
+    /// // Contains the first 4 bits of the slice.
+    /// assert_eq!(4, left_part.len());
+    /// // Contains the last 12 bits of the slice.
+    /// assert_eq!(12, right_part.len());
+    /// ```
     pub fn split_at(&self, index: usize) -> (BitSlice<&Backing>, BitSlice<&Backing>) {
         if index >= self.len() {
             panic!("index is {index} but length is {}", self.len())
@@ -84,6 +154,35 @@ impl<Backing: BitGet> BitSlice<Backing> {
 }
 
 impl<Backing: BitModify> BitSlice<Backing> {
+    /// Splits the bit slice into two disjunct parts at a given index, returning mutable views into each
+    /// part.
+    ///
+    /// # Arguments
+    ///
+    /// * `index` - The index to split at.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use succinct_neo::bit_vec::{BitVec, slice::BitSlice};
+    /// use succinct_neo::traits::{BitGet, BitModify, SliceBit};
+    ///
+    /// let mut bv = BitVec::new(16);
+    ///
+    /// let mut slice = bv.slice_bits_mut(..);
+    ///
+    /// let (mut left_part, mut right_part) = slice.split_at_mut(4);
+    ///
+    /// left_part.set_bit(2, true);
+    /// right_part.set_bit(7, true);
+    /// assert_eq!(true, left_part.get_bit(2));
+    /// assert_eq!(false, right_part.get_bit(11));
+    ///
+    /// // Contains the first 4 bits of the slice.
+    /// assert_eq!(4, left_part.len());
+    /// // Contains the last 12 bits of the slice.
+    /// assert_eq!(12, right_part.len());
+    /// ```
     pub fn split_at_mut(
         &mut self,
         index: usize,
