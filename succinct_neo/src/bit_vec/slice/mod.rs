@@ -183,11 +183,11 @@ mod test {
     fn is_empty_test() {
         let mut bv = BitVec::new(80);
 
-        let slice = bv.slice(40..40);
+        let slice = bv.slice_bits(40..40);
         assert_eq!(0, slice.len(), "immutable slice not empty");
         assert!(slice.is_empty(), "immutable slice not empty");
 
-        let slice = bv.slice_mut(40..40);
+        let slice = bv.slice_bits_mut(40..40);
         assert_eq!(0, slice.len(), "mutable slice not empty");
         assert!(slice.is_empty(), "mutable slice not empty")
     }
@@ -196,9 +196,9 @@ mod test {
     fn iter_test() {
         let mut bv = BitVec::new(80);
 
-        let mut slice = bv.slice_mut(20..40);
+        let mut slice = bv.slice_bits_mut(20..40);
         for i in 0..slice.len() {
-            slice.set(i, (i / 5) % 2 == 0)
+            slice.set_bit(i, (i / 5) % 2 == 0)
         }
 
         for (i, actual) in slice.iter().enumerate() {
@@ -210,7 +210,7 @@ mod test {
             )
         }
 
-        let slice = bv.slice(20..40);
+        let slice = bv.slice_bits(20..40);
         for (i, actual) in slice.iter().enumerate() {
             assert_eq!(
                 (i / 5) % 2 == 0,
@@ -238,10 +238,10 @@ mod test {
     #[test]
     fn debug_test() {
         let mut bv = BitVec::new(80);
-        let slice = bv.slice_mut(20..40);
+        let slice = bv.slice_bits_mut(20..40);
 
         println!("{slice:?}");
-        let slice = bv.slice(10..50);
+        let slice = bv.slice_bits(10..50);
         println!("{slice:?}");
         println!("{:?}", bv.iter());
     }
@@ -250,15 +250,15 @@ mod test {
     fn split_test() {
         let mut bv = BitVec::new(80);
         for i in 0..bv.len() {
-            bv.set(i, i % 2 == 0)
+            bv.set_bit(i, i % 2 == 0)
         }
-        let slice = bv.slice(20..40);
+        let slice = bv.slice_bits(20..40);
 
         let mut bv2 = bv.clone();
 
         let (l, r) = slice.split_at(10);
-        let slice_left = bv.slice(20..30);
-        let slice_right = bv.slice(30..40);
+        let slice_left = bv.slice_bits(20..30);
+        let slice_right = bv.slice_bits(30..40);
         assert_eq!(
             slice_left, l,
             "left-split part of immutable slice not the same"
@@ -268,11 +268,11 @@ mod test {
             "right-split part of immutable slice not the same"
         );
 
-        let mut slice = bv.slice_mut(20..40);
+        let mut slice = bv.slice_bits_mut(20..40);
 
         let (l, r) = slice.split_at(10);
-        let slice_left = bv2.slice(20..30);
-        let slice_right = bv2.slice(30..40);
+        let slice_left = bv2.slice_bits(20..30);
+        let slice_right = bv2.slice_bits(30..40);
         assert_eq!(
             slice_left, l,
             "left-split part of mutable slice not the same"
@@ -283,12 +283,12 @@ mod test {
         );
 
         let (l, r) = slice.split_at_mut(10);
-        let slice_left = bv2.slice_mut(20..30);
+        let slice_left = bv2.slice_bits_mut(20..30);
         assert_eq!(
             slice_left, l,
             "mutable left-split part of mutable slice not the same"
         );
-        let slice_right = bv2.slice_mut(30..40);
+        let slice_right = bv2.slice_bits_mut(30..40);
         assert_eq!(
             slice_right, r,
             "mutable right-split part of mutable slice not the same"
