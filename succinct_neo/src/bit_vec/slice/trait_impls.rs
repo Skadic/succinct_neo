@@ -1,11 +1,11 @@
 use std::ops::{Bound, RangeBounds};
 
-use crate::traits::{BitGet, BitModify, SliceBit, SliceBitMut};
+use crate::traits::{BitGet, BitModify, SliceBit};
 
-use super::{BitSlice, BitSliceMut, Iter};
+use super::{BitSlice, Iter};
 
-impl<B1: BitGet, B2: BitGet> PartialEq<BitSlice<'_, B2>> for BitSlice<'_, B1> {
-    fn eq(&self, other: &BitSlice<'_, B2>) -> bool {
+impl<B1: BitGet, B2: BitGet> PartialEq<BitSlice<B2>> for BitSlice<B1> {
+    fn eq(&self, other: &BitSlice<B2>) -> bool {
         if self.len() != other.len() {
             return false;
         }
@@ -14,37 +14,7 @@ impl<B1: BitGet, B2: BitGet> PartialEq<BitSlice<'_, B2>> for BitSlice<'_, B1> {
     }
 }
 
-impl<B1: BitGet, B2: BitGet> PartialEq<BitSliceMut<'_, B2>> for BitSliceMut<'_, B1> {
-    fn eq(&self, other: &BitSliceMut<'_, B2>) -> bool {
-        if self.len() != other.len() {
-            return false;
-        }
-
-        Iterator::eq(self.into_iter(), other.into_iter())
-    }
-}
-
-impl<B1: BitGet, B2: BitGet> PartialEq<BitSliceMut<'_, B2>> for BitSlice<'_, B1> {
-    fn eq(&self, other: &BitSliceMut<'_, B2>) -> bool {
-        if self.len() != other.len() {
-            return false;
-        }
-
-        Iterator::eq(self.into_iter(), other.into_iter())
-    }
-}
-
-impl<B1: BitGet, B2: BitGet> PartialEq<BitSlice<'_, B2>> for BitSliceMut<'_, B1> {
-    fn eq(&self, other: &BitSlice<'_, B2>) -> bool {
-        if self.len() != other.len() {
-            return false;
-        }
-
-        Iterator::eq(self.into_iter(), other.into_iter())
-    }
-}
-
-impl<Backing: BitGet> BitGet for BitSlice<'_, Backing> {
+impl<Backing: BitGet> BitGet for BitSlice<Backing> {
     unsafe fn get_bit_unchecked(&self, index: usize) -> bool {
         self.backing.get_bit_unchecked(self.start + index)
     }
@@ -57,22 +27,7 @@ impl<Backing: BitGet> BitGet for BitSlice<'_, Backing> {
     }
 }
 
-impl<Backing: BitGet> BitGet for BitSliceMut<'_, Backing> {
-    #[inline]
-    unsafe fn get_bit_unchecked(&self, index: usize) -> bool {
-        self.backing.get_bit_unchecked(self.start + index)
-    }
-
-    #[inline]
-    fn get_bit(&self, index: usize) -> bool {
-        if index >= self.len() {
-            panic!("index is {index} but length is {}", self.len())
-        }
-        unsafe { self.get_bit_unchecked(index) }
-    }
-}
-
-impl<Backing: BitModify> BitModify for BitSliceMut<'_, Backing> {
+impl<Backing: BitModify> BitModify for BitSlice<Backing> {
     #[inline]
     unsafe fn set_bit_unchecked(&mut self, index: usize, value: bool) {
         self.backing.set_bit_unchecked(self.start + index, value)
@@ -119,40 +74,20 @@ impl<Backing: BitGet> ExactSizeIterator for Iter<Backing> {
     }
 }
 
-impl<'a, Backing: BitGet> IntoIterator for BitSlice<'a, Backing> {
+impl<Backing: BitGet> IntoIterator for BitSlice<Backing> {
+    type Item = bool;
+
+    type IntoIter = Iter<Backing>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        Iter::new(self.backing, self.start, self.end)
+    }
+}
+
+impl<'a, Backing: BitGet> IntoIterator for &'a BitSlice<Backing> {
     type Item = bool;
 
     type IntoIter = Iter<&'a Backing>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        Iter::new(self.backing, self.start, self.end)
-    }
-}
-
-impl<'a, Backing: BitGet> IntoIterator for &'_ BitSlice<'a, Backing> {
-    type Item = bool;
-
-    type IntoIter = Iter<&'a Backing>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        Iter::new(self.backing, self.start, self.end)
-    }
-}
-
-impl<'a, Backing: BitGet> IntoIterator for BitSliceMut<'a, Backing> {
-    type Item = bool;
-
-    type IntoIter = Iter<&'a mut Backing>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        Iter::new(self.backing, self.start, self.end)
-    }
-}
-
-impl<'a, 'b, Backing: BitGet> IntoIterator for &'a BitSliceMut<'b, Backing> {
-    type Item = bool;
-
-    type IntoIter = Iter<&'a &'b mut Backing>;
 
     fn into_iter(self) -> Self::IntoIter {
         Iter::new(&self.backing, self.start, self.end)
@@ -168,7 +103,22 @@ where
     for<'a> &'a T: IntoIterator,
     for<'a> <&'a T as IntoIterator>::IntoIter: ExactSizeIterator,
 {
-    fn slice_bits(&self, r: R) -> BitSlice<Self> {
+    fn slice_bits(&self, r: R) -> BitSlice<&Self> {
+        let start = match r.start_bound() {
+            Bound::Excluded(&s) => s + 1,
+            Bound::Included(&s) => s,
+            Bound::Unbounded => 0,
+        };
+        let end = match r.end_bound() {
+            Bound::Excluded(&e) => e,
+            Bound::Included(&e) => e + 1,
+            Bound::Unbounded => self.into_iter().len(),
+        };
+
+        BitSlice::new(self, start, end)
+    }
+
+    fn slice_bits_mut(&mut self, r: R) -> BitSlice<&mut Self> {
         let start = match r.start_bound() {
             Bound::Excluded(&s) => s + 1,
             Bound::Included(&s) => s,
@@ -184,37 +134,11 @@ where
     }
 }
 
-impl<T, R> SliceBitMut<R> for T
-where
-    T: BitModify,
-    R: RangeBounds<usize>,
-    for<'a> &'a T: IntoIterator,
-    for<'a> <&'a T as IntoIterator>::IntoIter: ExactSizeIterator,
-{
-    fn slice_bits_mut(&mut self, r: R) -> BitSliceMut<Self> {
-        let start = match r.start_bound() {
-            Bound::Excluded(&s) => s + 1,
-            Bound::Included(&s) => s,
-            Bound::Unbounded => 0,
-        };
-        let end = match r.end_bound() {
-            Bound::Excluded(&e) => e,
-            Bound::Included(&e) => e + 1,
-            Bound::Unbounded => self.into_iter().len(),
-        };
-
-        BitSliceMut::new(self, start, end)
-    }
-}
-
 #[cfg(test)]
 mod test {
     use crate::{
-        bit_vec::{
-            slice::{BitSlice, BitSliceMut},
-            BitVec,
-        },
-        traits::{BitGet, BitModify, SliceBit, SliceBitMut},
+        bit_vec::BitVec,
+        traits::{BitGet, BitModify, SliceBit},
     };
 
     #[test]
@@ -313,7 +237,12 @@ mod test {
             bv.set_bit(i, i % 2 == 0);
         }
 
-        for (i, (expect, actual)) in bv.slice_bits(0..40).into_iter().zip(bv.slice_bits(..40)).enumerate() {
+        for (i, (expect, actual)) in bv
+            .slice_bits(0..40)
+            .into_iter()
+            .zip(bv.slice_bits(..40))
+            .enumerate()
+        {
             assert_eq!(expect, actual, "incorrect value at index {i}")
         }
     }
@@ -326,7 +255,12 @@ mod test {
             bv.set_bit(i, i % 2 == 0);
         }
 
-        for (i, (expect, actual)) in bv.slice_bits(0..40).into_iter().zip(bv.slice_bits(..=39)).enumerate() {
+        for (i, (expect, actual)) in bv
+            .slice_bits(0..40)
+            .into_iter()
+            .zip(bv.slice_bits(..=39))
+            .enumerate()
+        {
             assert_eq!(expect, actual, "incorrect value at index {i}")
         }
     }
@@ -339,7 +273,12 @@ mod test {
             bv.set_bit(i, i % 2 == 0);
         }
 
-        for (i, (expect, actual)) in bv.slice_bits(20..80).into_iter().zip(bv.slice_bits(20..)).enumerate() {
+        for (i, (expect, actual)) in bv
+            .slice_bits(20..80)
+            .into_iter()
+            .zip(bv.slice_bits(20..))
+            .enumerate()
+        {
             assert_eq!(expect, actual, "incorrect value at index {}", i + 20)
         }
     }
@@ -375,17 +314,15 @@ mod test {
     fn get_out_of_bounds_test() {
         let bv = BitVec::new(80);
         let slice = bv.slice_bits(20..40);
-        // This is just to get coverage in the trait
-        <&BitSlice<BitVec> as BitGet>::get_bit(&&slice, 20);
+        slice.get_bit(20);
     }
 
     #[test]
     #[should_panic]
     fn get_out_of_bounds_mut_test() {
         let mut bv = BitVec::new(80);
-        let mut slice = bv.slice_bits_mut(20..40);
-        // This is just to get coverage in the trait
-        <&mut BitSliceMut<BitVec> as BitGet>::get_bit(&&mut slice, 20);
+        let slice = bv.slice_bits_mut(20..40);
+        slice.get_bit(20);
     }
 
     #[test]

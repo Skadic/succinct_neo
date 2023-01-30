@@ -1,4 +1,4 @@
-use crate::traits::BitGet;
+use crate::traits::{BitGet, BitModify};
 
 mod trait_impls;
 
@@ -13,8 +13,8 @@ mod trait_impls;
 /// # Examples
 ///
 /// ```
-/// use succinct_neo::bit_vec::{BitVec, slice::BitSliceMut};
-/// use succinct_neo::traits::{BitGet, BitModify, SliceBitMut};
+/// use succinct_neo::bit_vec::{BitVec, slice::BitSlice};
+/// use succinct_neo::traits::{BitGet, BitModify, SliceBit};
 ///
 /// let mut bv = BitVec::new(16);
 /// let mut slice = bv.slice_bits_mut(8..10);
@@ -26,15 +26,15 @@ mod trait_impls;
 ///
 /// assert_eq!(true, bv.get_bit(8));
 /// ```
-#[derive(Debug)]
-pub struct BitSlice<'a, Backing> {
-    backing: &'a Backing,
+#[derive(Debug, Clone)]
+pub struct BitSlice<Backing> {
+    backing: Backing,
     start: usize,
     end: usize,
 }
 
-impl<'a, Backing> BitSlice<'a, Backing> {
-    pub fn new(backing: &'a Backing, start: usize, end: usize) -> Self {
+impl<Backing> BitSlice<Backing> {
+    pub fn new(backing: Backing, start: usize, end: usize) -> Self {
         debug_assert!(
             start <= end,
             "end index must be greater or equal to the start index"
@@ -55,99 +55,51 @@ impl<'a, Backing> BitSlice<'a, Backing> {
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
+
+    #[inline]
+    pub fn backing(&self) -> &Backing {
+        &self.backing
+    }
 }
 
-impl<'a, Backing: BitGet> BitSlice<'a, Backing> {
-    pub fn iter(&self) -> Iter<&'a Backing> {
+impl<Backing: BitGet> BitSlice<Backing> {
+    pub fn iter(&self) -> Iter<&Backing> {
         Iter {
-            backing: self.backing,
+            backing: &self.backing,
             current: self.start,
             end: self.end,
         }
     }
 
-    pub fn split_at(&self, index: usize) -> (BitSlice<'_, Backing>, BitSlice<'_, Backing>) {
+    pub fn split_at(&self, index: usize) -> (BitSlice<&Backing>, BitSlice<&Backing>) {
         if index >= self.len() {
             panic!("index is {index} but length is {}", self.len())
         }
 
         (
-            BitSlice::new(self.backing, self.start, self.start + index),
-            BitSlice::new(self.backing, self.start + index, self.end),
+            BitSlice::new(&self.backing, self.start, self.start + index),
+            BitSlice::new(&self.backing, self.start + index, self.end),
         )
     }
 }
 
-#[derive(Debug)]
-pub struct BitSliceMut<'a, Backing> {
-    backing: &'a mut Backing,
-    start: usize,
-    end: usize,
-}
-
-impl<'a, Backing> BitSliceMut<'a, Backing> {
-    pub fn new(backing: &'a mut Backing, start: usize, end: usize) -> Self {
-        debug_assert!(
-            start <= end,
-            "end index must be greater or equal to the start index"
-        );
-        Self {
-            backing,
-            start,
-            end,
-        }
-    }
-
-    #[inline]
-    pub fn len(&self) -> usize {
-        self.end - self.start
-    }
-
-    #[inline]
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-}
-
-impl<'a, Backing: BitGet> BitSliceMut<'a, Backing> {
-    pub fn iter(&self) -> Iter<&Self> {
-        Iter {
-            backing: self,
-            current: 0,
-            end: self.len(),
-        }
-    }
-
-    pub fn split_at(&self, index: usize) -> (BitSlice<'_, Backing>, BitSlice<'_, Backing>) {
-        if index >= self.len() {
-            panic!("index is {index} but length is {}", self.len())
-        }
-
-        // SAFETY: We know this is safe since we just created the pointer so it definitely is not null
-        // In addition we are only removing the mutable part of the reference, so this is fine
-        let ptr = unsafe { (self.backing as *const Backing).as_ref().unwrap() };
-        (
-            BitSlice::new(ptr, self.start, self.start + index),
-            BitSlice::new(ptr, self.start + index, self.end),
-        )
-    }
-
+impl<Backing: BitModify> BitSlice<Backing> {
     pub fn split_at_mut(
         &mut self,
         index: usize,
-    ) -> (BitSliceMut<'_, Backing>, BitSliceMut<'_, Backing>) {
+    ) -> (BitSlice<&mut Backing>, BitSlice<&mut Backing>) {
         if index >= self.len() {
             panic!("index is {index} but length is {}", self.len())
         }
 
-        let ptr = self.backing as *mut Backing;
+        let ptr = &mut self.backing as *mut Backing;
 
         // SAFETY: We know this is safe since we just created the pointer so it definitely is not null
         // Also, since the slices we create do not overlap, it is no problem to have two mutable references to the backing datastructure
         unsafe {
             (
-                BitSliceMut::new(ptr.as_mut().unwrap(), self.start, self.start + index),
-                BitSliceMut::new(ptr.as_mut().unwrap(), self.start + index, self.end),
+                BitSlice::new(ptr.as_mut().unwrap(), self.start, self.start + index),
+                BitSlice::new(ptr.as_mut().unwrap(), self.start + index, self.end),
             )
         }
     }
@@ -174,10 +126,10 @@ impl<Backing> Iter<Backing> {
 mod test {
     use crate::{
         bit_vec::BitVec,
-        traits::{BitModify, SliceBit, SliceBitMut},
+        traits::{BitModify, SliceBit},
     };
 
-    use super::{BitSlice, BitSliceMut};
+    use super::BitSlice;
 
     #[test]
     fn is_empty_test() {
@@ -226,13 +178,6 @@ mod test {
     fn slice_invalid_bound_test() {
         let bv = BitVec::new(80);
         BitSlice::new(&bv, 10, 9);
-    }
-
-    #[test]
-    #[should_panic]
-    fn mut_slice_invalid_bound_test() {
-        let mut bv = BitVec::new(80);
-        BitSliceMut::new(&mut bv, 10, 9);
     }
 
     #[test]

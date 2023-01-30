@@ -5,7 +5,7 @@ use num::{
     FromPrimitive, Integer, ToPrimitive, Unsigned,
 };
 
-use crate::bit_vec::slice::{BitSlice, BitSliceMut};
+use crate::bit_vec::slice::BitSlice;
 
 /// A trait supporting basic primitve integer operations, used for block types in compressed data structures.
 pub trait BlockType:
@@ -96,6 +96,25 @@ impl<T: BitGet> BitGet for &'_ mut T {
     }
 }
 
+impl <T: BitModify> BitModify for &'_ mut T {
+    unsafe fn set_bit_unchecked(&mut self, index: usize, value: bool) {
+        <T as BitModify>::set_bit_unchecked(self, index, value)
+    }
+
+    fn set_bit(&mut self, index: usize, value: bool) {
+        <T as BitModify>::set_bit(self, index, value)
+    }
+
+    unsafe fn flip_bit_unchecked(&mut self, index: usize) {
+        <T as BitModify>::flip_bit_unchecked(self, index)
+    }
+
+    fn flip_bit(&mut self, index: usize) {
+        <T as BitModify>::flip_bit(self, index)
+    }
+}
+
+
 /// Defines methods for modifying bits stored in a datastructure.
 pub trait BitModify {
     /// Sets a bit to a boolean value without making any checks for bounds.
@@ -121,17 +140,13 @@ pub trait BitModify {
     fn flip_bit(&mut self, index: usize);
 }
 
-/// Allows retrieving an immutable view into a bit-storing data structure.
+/// Allows retrieving a view into a bit-storing data structure.
 pub trait SliceBit<Index>: Sized {
     /// Gets an immutable view into the data structure.
-    fn slice_bits(&self, index: Index) -> BitSlice<'_, Self>;
+    fn slice_bits(&self, index: Index) -> BitSlice<&Self>;
+    fn slice_bits_mut(&mut self, index: Index) -> BitSlice<&mut Self>;
 }
 
-/// Allows retrieving a mutable view into a bit-storing data structure.
-pub trait SliceBitMut<Index>: Sized {
-    /// Gets a mutable view into the data structure.
-    fn slice_bits_mut(&mut self, index: Index) -> BitSliceMut<'_, Self>;
-}
 
 pub trait BitAccess: BitGet + BitModify {}
 impl<T> BitAccess for T where T: BitGet + BitModify {}
