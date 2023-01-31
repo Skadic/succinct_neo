@@ -1,30 +1,36 @@
-use crate::traits::{BitGet, BitModify};
 use std::fmt::{Debug, Formatter};
+use std::ops::{Deref, DerefMut};
+
+use itertools::Itertools;
+
+use crate::bit_vec::slice::BitSlice;
+use crate::traits::{BitGet, BitModify};
 
 use self::slice::Iter;
-use itertools::Itertools;
 
 pub mod slice;
 
 /// The word size on this machine in bits
 const WORD_SIZE: usize = 64;
 
-/// The logarithm of the word size for dividing by the word size quickly
+/// The logarithm of the word size for multiplying/dividing by the word size quickly
 const WORD_EXP: usize = 6;
 
 /// A mask for quickly calculating the modulus
 const WORD_MASK: usize = (1 << WORD_EXP) - 1;
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone)]
 pub struct BitVec {
-    data: Vec<usize>,
+    data: BitSlice<Box<[usize]>>,
     size: usize,
 }
 
 impl BitVec {
     pub fn new(size: usize) -> Self {
+        let v = vec![0usize; (size as f64 / WORD_SIZE as f64).ceil() as usize];
+        let b = v.into_boxed_slice();
         Self {
-            data: vec![0; (size as f64 / WORD_SIZE as f64).ceil() as usize],
+            data: BitSlice::new(b, 0, size),
             size,
         }
     }
@@ -33,8 +39,9 @@ impl BitVec {
         self.size
     }
 
-    pub fn iter(&self) -> Iter<&Self> {
-        self.into_iter()
+    #[allow(clippy::borrowed_box)]
+    pub fn iter(&self) -> Iter<&Box<[usize]>> {
+        self.data.iter()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -43,12 +50,12 @@ impl BitVec {
 }
 
 impl BitGet for BitVec {
+    #[inline]
     unsafe fn get_bit_unchecked(&self, index: usize) -> bool {
-        let block_index = index >> WORD_EXP;
-        let internal_index = index & WORD_MASK;
-        unsafe { self.data.get_unchecked(block_index) & (1 << internal_index) > 0 }
+        self.data.get_bit_unchecked(index)
     }
 
+    #[inline]
     fn get_bit(&self, index: usize) -> bool {
         if index >= self.len() {
             panic!("index is {index} but length is {}", self.size)
@@ -58,11 +65,56 @@ impl BitGet for BitVec {
 }
 
 impl BitModify for BitVec {
+    #[inline]
+    unsafe fn set_bit_unchecked(&mut self, index: usize, value: bool) {
+        self.data.set_bit_unchecked(index, value)
+    }
+
+    #[inline]
+    fn set_bit(&mut self, index: usize, value: bool) {
+        if index >= self.len() {
+            panic!("index is {index} but length is {}", self.size)
+        }
+        unsafe { self.set_bit_unchecked(index, value) }
+    }
+
+    #[inline]
+    unsafe fn flip_bit_unchecked(&mut self, index: usize) {
+        self.data.flip_bit_unchecked(index)
+    }
+
+    #[inline]
+    fn flip_bit(&mut self, index: usize) {
+        if index >= self.len() {
+            panic!("index is {index} but length is {}", self.size)
+        }
+        unsafe { self.flip_bit_unchecked(index) }
+    }
+}
+
+impl BitGet for [usize] {
+    #[inline]
+    unsafe fn get_bit_unchecked(&self, index: usize) -> bool {
+        let block_index = index >> WORD_EXP;
+        let internal_index = index & WORD_MASK;
+        unsafe { self.get_unchecked(block_index) & (1 << internal_index) > 0 }
+    }
+
+    #[inline]
+    fn get_bit(&self, index: usize) -> bool {
+        if index >= self.len() << WORD_EXP {
+            panic!("index is {index} but length is {}", self.len() << WORD_EXP)
+        }
+        unsafe { self.get_bit_unchecked(index) }
+    }
+}
+
+impl BitModify for [usize] {
     unsafe fn set_bit_unchecked(&mut self, index: usize, value: bool) {
         let block_index = index >> WORD_EXP;
         let internal_index = index & WORD_MASK;
 
-        let block = unsafe { self.data.get_unchecked_mut(block_index) };
+        let block = unsafe { self.get_unchecked_mut(block_index) };
 
         if value {
             *block |= 1 << internal_index;
@@ -72,8 +124,8 @@ impl BitModify for BitVec {
     }
 
     fn set_bit(&mut self, index: usize, value: bool) {
-        if index >= self.len() {
-            panic!("index is {index} but length is {}", self.size)
+        if index >= self.len() << WORD_EXP {
+            panic!("index is {index} but length is {}", self.len() << WORD_EXP)
         }
         unsafe { self.set_bit_unchecked(index, value) }
     }
@@ -82,58 +134,21 @@ impl BitModify for BitVec {
         let block_index = index >> WORD_EXP;
         let internal_index = index & WORD_MASK;
 
-        unsafe { *self.data.get_unchecked_mut(block_index) ^= 1 << internal_index }
+        unsafe { *self.get_unchecked_mut(block_index) ^= 1 << internal_index }
     }
 
     fn flip_bit(&mut self, index: usize) {
-        if index >= self.len() {
-            panic!("index is {index} but length is {}", self.size)
+        if index >= self.len() << WORD_EXP {
+            panic!("index is {index} but length is {}", self.len() << WORD_EXP)
         }
         unsafe { self.flip_bit_unchecked(index) }
-    }
-}
-
-pub struct IntoIter {
-    bit_vec: BitVec,
-    current: usize,
-}
-
-impl Iterator for IntoIter {
-    type Item = bool;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.current >= self.bit_vec.size {
-            return None;
-        }
-        let v = self.bit_vec.get_bit(self.current);
-        self.current += 1;
-        Some(v)
-    }
-}
-
-impl ExactSizeIterator for IntoIter {
-    fn len(&self) -> usize {
-        self.bit_vec.size - self.current
-    }
-}
-
-impl IntoIterator for BitVec {
-    type Item = bool;
-
-    type IntoIter = IntoIter;
-
-    fn into_iter(self) -> Self::IntoIter {
-        IntoIter {
-            bit_vec: self,
-            current: 0,
-        }
     }
 }
 
 impl<'a> IntoIterator for &'a BitVec {
     type Item = bool;
 
-    type IntoIter = Iter<&'a BitVec>;
+    type IntoIter = Iter<Self>;
 
     fn into_iter(self) -> Self::IntoIter {
         Iter::new(self, 0, self.size)
@@ -155,6 +170,32 @@ impl Debug for BitVec {
                 )
             })
             .and_then(|_| write!(f, "}}"))
+    }
+}
+
+impl Deref for BitVec {
+    type Target = BitSlice<Box<[usize]>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.data
+    }
+}
+
+impl DerefMut for BitVec {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.data
+    }
+}
+
+impl AsRef<BitSlice<Box<[usize]>>> for BitVec {
+    fn as_ref(&self) -> &BitSlice<Box<[usize]>> {
+        &self.data
+    }
+}
+
+impl AsMut<BitSlice<Box<[usize]>>> for BitVec {
+    fn as_mut(&mut self) -> &mut BitSlice<Box<[usize]>> {
+        &mut self.data
     }
 }
 

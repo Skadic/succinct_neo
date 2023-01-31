@@ -1,4 +1,5 @@
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign};
+use std::rc::Rc;
 
 use num::{
     traits::{NumAssignOps, NumOps},
@@ -83,7 +84,7 @@ pub trait BitGet {
     fn get_bit(&self, index: usize) -> bool;
 }
 
-impl<T: BitGet> BitGet for &'_ T {
+impl<T: BitGet + ?Sized> BitGet for &'_ T {
     #[inline]
     #[allow(clippy::missing_safety_doc)]
     unsafe fn get_bit_unchecked(&self, index: usize) -> bool {
@@ -96,7 +97,7 @@ impl<T: BitGet> BitGet for &'_ T {
     }
 }
 
-impl<T: BitGet> BitGet for &'_ mut T {
+impl<T: BitGet + ?Sized> BitGet for &'_ mut T {
     #[inline]
     unsafe fn get_bit_unchecked(&self, index: usize) -> bool {
         <T as BitGet>::get_bit_unchecked(self, index)
@@ -108,21 +109,73 @@ impl<T: BitGet> BitGet for &'_ mut T {
     }
 }
 
-impl<T: BitModify> BitModify for &'_ mut T {
+impl<T: BitModify + ?Sized> BitModify for &'_ mut T {
+    #[inline]
     unsafe fn set_bit_unchecked(&mut self, index: usize, value: bool) {
         <T as BitModify>::set_bit_unchecked(self, index, value)
     }
 
+    #[inline]
     fn set_bit(&mut self, index: usize, value: bool) {
         <T as BitModify>::set_bit(self, index, value)
     }
 
+    #[inline]
     unsafe fn flip_bit_unchecked(&mut self, index: usize) {
         <T as BitModify>::flip_bit_unchecked(self, index)
     }
 
+    #[inline]
     fn flip_bit(&mut self, index: usize) {
         <T as BitModify>::flip_bit(self, index)
+    }
+}
+
+impl<T: BitGet + ?Sized> BitGet for Box<T> {
+    #[inline]
+    #[allow(clippy::missing_safety_doc)]
+    unsafe fn get_bit_unchecked(&self, index: usize) -> bool {
+        <T as BitGet>::get_bit_unchecked(self, index)
+    }
+
+    #[inline]
+    fn get_bit(&self, index: usize) -> bool {
+        <T as BitGet>::get_bit(self, index)
+    }
+}
+
+impl<T: BitModify + ?Sized> BitModify for Box<T> {
+    #[inline]
+    unsafe fn set_bit_unchecked(&mut self, index: usize, value: bool) {
+        <T as BitModify>::set_bit_unchecked(self, index, value)
+    }
+
+    #[inline]
+    fn set_bit(&mut self, index: usize, value: bool) {
+        <T as BitModify>::set_bit(self, index, value)
+    }
+
+    #[inline]
+    unsafe fn flip_bit_unchecked(&mut self, index: usize) {
+        <T as BitModify>::flip_bit_unchecked(self, index)
+    }
+
+    #[inline]
+    fn flip_bit(&mut self, index: usize) {
+        <T as BitModify>::flip_bit(self, index)
+    }
+}
+
+impl<T: BitGet> BitGet for Rc<T> {
+    #[inline]
+    #[allow(clippy::missing_safety_doc)]
+    unsafe fn get_bit_unchecked(&self, index: usize) -> bool {
+        <T as BitGet>::get_bit_unchecked(self, index)
+    }
+
+    #[inline]
+    fn get_bit(&self, index: usize) -> bool {
+        <T as BitGet>::get_bit(self, index)
     }
 }
 
@@ -169,7 +222,6 @@ pub trait BitModify {
 
 /// Allows retrieving a view into a bit-storing data structure.
 pub trait SliceBit<Index>: Sized {
-
     /// Gets an immutable view into the data structure.
     ///
     /// # Arguments
