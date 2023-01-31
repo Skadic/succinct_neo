@@ -40,6 +40,7 @@ fn cover_only() -> Result<(), anyhow::Error> {
     {
         Some("xml") | Some("cobertura") => ("cobertura", "xml"),
         Some("lcov") => ("lcov", "lcov"),
+        Some("json") | Some("covdir") => ("covdir", "json"),
         Some(s) => {
             eprintln!("Warning: invalid format: {s}");
             ("cobertura", "xml")
