@@ -103,13 +103,13 @@ mod test {
     fn full_range_test() {
         let mut bv = BitVec::new(80);
         let n = bv.len();
-        let mut slice = bv.slice_bits_mut(..);
+        let mut slice = bv.slice_mut(..);
 
         for i in 0..n {
             slice.set_bit(i, i % 5 == 0);
         }
 
-        let slice = bv.slice_bits(..);
+        let slice = bv.slice(..);
         for (i, (expect, actual)) in bv.iter().zip(slice).enumerate() {
             assert_eq!(
                 expect, actual,
@@ -125,7 +125,7 @@ mod test {
     #[test]
     fn range_test() {
         let mut bv = BitVec::new(80);
-        let mut slice = bv.slice_bits_mut(20..40);
+        let mut slice = bv.slice_mut(20..40);
         assert_eq!(20, slice.start, "incorrect mutable slice start");
         assert_eq!(40, slice.end, "incorrect mutable slice end");
 
@@ -133,7 +133,7 @@ mod test {
             slice.set_bit(i, i % 2 == 0);
         }
 
-        let slice = bv.slice_bits(20..40);
+        let slice = bv.slice(20..40);
         assert_eq!(20, slice.start, "incorrect immutable slice start");
         assert_eq!(40, slice.end, "incorrect immutable slice end");
         for (i, (expect, actual)) in bv.iter().skip(20).zip(slice).enumerate() {
@@ -163,9 +163,9 @@ mod test {
         }
 
         for (i, (expect, actual)) in bv
-            .slice_bits(20..40)
+            .slice(20..40)
             .into_iter()
-            .zip(bv.slice_bits(20..=39))
+            .zip(bv.slice(20..=39))
             .enumerate()
         {
             assert_eq!(
@@ -178,9 +178,9 @@ mod test {
 
         let bv2 = bv.clone();
         for (i, (expect, actual)) in bv2
-            .slice_bits(20..40)
+            .slice(20..40)
             .into_iter()
-            .zip(bv.slice_bits_mut(20..=39))
+            .zip(bv.slice_mut(20..=39))
             .enumerate()
         {
             assert_eq!(expect, actual, "incorrect value at index {} (mut)", i + 20)
@@ -195,12 +195,7 @@ mod test {
             bv.set_bit(i, i % 2 == 0);
         }
 
-        for (i, (expect, actual)) in bv
-            .slice_bits(0..40)
-            .into_iter()
-            .zip(bv.slice_bits(..40))
-            .enumerate()
-        {
+        for (i, (expect, actual)) in bv.slice(0..40).into_iter().zip(bv.slice(..40)).enumerate() {
             assert_eq!(expect, actual, "incorrect value at index {i}")
         }
     }
@@ -213,12 +208,7 @@ mod test {
             bv.set_bit(i, i % 2 == 0);
         }
 
-        for (i, (expect, actual)) in bv
-            .slice_bits(0..40)
-            .into_iter()
-            .zip(bv.slice_bits(..=39))
-            .enumerate()
-        {
+        for (i, (expect, actual)) in bv.slice(0..40).into_iter().zip(bv.slice(..=39)).enumerate() {
             assert_eq!(expect, actual, "incorrect value at index {i}")
         }
     }
@@ -231,12 +221,7 @@ mod test {
             bv.set_bit(i, i % 2 == 0);
         }
 
-        for (i, (expect, actual)) in bv
-            .slice_bits(20..80)
-            .into_iter()
-            .zip(bv.slice_bits(20..))
-            .enumerate()
-        {
+        for (i, (expect, actual)) in bv.slice(20..80).into_iter().zip(bv.slice(20..)).enumerate() {
             assert_eq!(expect, actual, "incorrect value at index {}", i + 20)
         }
     }
@@ -247,7 +232,7 @@ mod test {
         for i in 0..bv.len() {
             bv.set_bit(i, i % 2 == 0)
         }
-        let slice = bv.slice_bits(10..70);
+        let slice = bv.slice(10..70);
         for i in 0..slice.len() {
             assert_eq!(
                 bv.get_bit(i + 10),
@@ -257,7 +242,7 @@ mod test {
         }
 
         let bv2 = bv.clone();
-        let slice = bv.slice_bits_mut(10..70);
+        let slice = bv.slice_mut(10..70);
         for i in 0..slice.len() {
             assert_eq!(
                 bv2.get_bit(i + 10),
@@ -271,7 +256,7 @@ mod test {
     #[should_panic]
     fn get_out_of_bounds_test() {
         let bv = BitVec::new(80);
-        let slice = bv.slice_bits(20..40);
+        let slice = bv.slice(20..40);
         slice.get_bit(20);
     }
 
@@ -279,7 +264,7 @@ mod test {
     #[should_panic]
     fn get_out_of_bounds_mut_test() {
         let mut bv = BitVec::new(80);
-        let slice = bv.slice_bits_mut(20..40);
+        let slice = bv.slice_mut(20..40);
         slice.get_bit(20);
     }
 
@@ -287,7 +272,7 @@ mod test {
     #[should_panic]
     fn set_out_of_bounds_test() {
         let mut bv = BitVec::new(80);
-        let mut slice = bv.slice_bits_mut(20..40);
+        let mut slice = bv.slice_mut(20..40);
         slice.set_bit(20, true);
     }
 
@@ -295,19 +280,19 @@ mod test {
     #[should_panic]
     fn flip_out_of_bounds_test() {
         let mut bv = BitVec::new(80);
-        let mut slice = bv.slice_bits_mut(20..40);
+        let mut slice = bv.slice_mut(20..40);
         slice.flip_bit(20);
     }
 
     #[test]
     fn set_test() {
         let mut bv = BitVec::new(80);
-        let mut slice = bv.slice_bits_mut(..);
+        let mut slice = bv.slice_mut(..);
         for i in 0..slice.len() {
             slice.set_bit(i, i % 2 == 0)
         }
 
-        let slice = bv.slice_bits(10..70);
+        let slice = bv.slice(10..70);
         for i in 0..slice.len() {
             assert_eq!(
                 bv.get_bit(i + 10),
@@ -320,7 +305,7 @@ mod test {
     #[test]
     fn flip_test() {
         let mut bv = BitVec::new(80);
-        let mut slice = bv.slice_bits_mut(..);
+        let mut slice = bv.slice_mut(..);
         for i in 0..slice.len() {
             slice.set_bit(i, i % 2 == 0)
         }
@@ -340,7 +325,7 @@ mod test {
             bv.set_bit(i, i % 2 == 0)
         }
 
-        let slice = bv.slice_bits(20..80);
+        let slice = bv.slice(20..80);
         for (i, v) in (&slice).into_iter().enumerate() {
             assert_eq!(
                 i % 2 == 0,
@@ -353,7 +338,7 @@ mod test {
             assert_eq!(i % 2 == 0, v, "incorrect value at index {} (immut)", i + 20)
         }
 
-        let slice = bv.slice_bits_mut(20..80);
+        let slice = bv.slice_mut(20..80);
         for (i, v) in (&slice).into_iter().enumerate() {
             assert_eq!(
                 i % 2 == 0,
@@ -376,24 +361,24 @@ mod test {
 
         let mut bv2 = bv.clone();
 
-        let s1 = bv.slice_bits(10..50);
-        let s2 = bv2.slice_bits(20..60);
+        let s1 = bv.slice(10..50);
+        let s2 = bv2.slice(20..60);
         assert_eq!(s1, s2, "immutable-immutable slices not equal");
-        let s2 = bv2.slice_bits(20..70);
+        let s2 = bv2.slice(20..70);
         assert_ne!(s1, s2, "immutable-immutable slices are equal");
 
-        let s1 = bv.slice_bits(30..50);
-        let s2 = bv2.slice_bits_mut(60..80);
+        let s1 = bv.slice(30..50);
+        let s2 = bv2.slice_mut(60..80);
         assert_eq!(s1, s2, "immutable-mutable slices not equal");
         assert_eq!(s2, s1, "mutable-immutable slices not equal");
-        let s2 = bv2.slice_bits_mut(60..70);
+        let s2 = bv2.slice_mut(60..70);
         assert_ne!(s1, s2, "immutable-mutable slices are equal");
         assert_ne!(s2, s1, "mutable-immutable slices are equal");
 
-        let s1 = bv.slice_bits_mut(30..50);
-        let s2 = bv2.slice_bits_mut(60..80);
+        let s1 = bv.slice_mut(30..50);
+        let s2 = bv2.slice_mut(60..80);
         assert_eq!(s1, s2, "mutable-mutable slices not equal");
-        let s2 = bv2.slice_bits_mut(60..70);
+        let s2 = bv2.slice_mut(60..70);
         assert_ne!(s1, s2, "mutable-mutable slices are equal");
     }
 }

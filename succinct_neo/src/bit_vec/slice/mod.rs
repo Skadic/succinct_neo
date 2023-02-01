@@ -1,7 +1,7 @@
 use crate::traits::{BitGet, BitModify};
 
-mod trait_impls;
 mod slicing;
+mod trait_impls;
 
 /// A view into a segment of a type which supports `BitGet` and/or `BitModify` if the backing type supports it respectively.
 ///
@@ -18,7 +18,7 @@ mod slicing;
 /// use succinct_neo::traits::{BitGet, BitModify};
 ///
 /// let mut bv = BitVec::new(16);
-/// let mut slice = bv.slice_bits_mut(8..10);
+/// let mut slice = bv.slice_mut(8..10);
 /// assert_eq!(2, slice.len());
 ///
 /// slice.set_bit(0, true);
@@ -80,18 +80,6 @@ impl<Backing> BitSlice<Backing> {
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
-
-    /// Gets a reference to the backing data.
-    #[inline]
-    pub fn backing(&self) -> &Backing {
-        &self.backing
-    }
-
-    /// Gets a mutable reference to the backing data.
-    #[inline]
-    pub fn backing_mut(&mut self) -> &mut Backing {
-        &mut self.backing
-    }
 }
 
 impl<Backing: BitGet> BitSlice<Backing> {
@@ -105,7 +93,7 @@ impl<Backing: BitGet> BitSlice<Backing> {
     ///
     /// let mut bv = BitVec::new(16);
     /// bv.set_bit(6, true);
-    /// let slice = bv.slice_bits_mut(5..8);
+    /// let slice = bv.slice_mut(5..8);
     ///
     /// for (i, value) in slice.iter().enumerate() {
     ///     assert_eq!(i == 1, value);
@@ -133,7 +121,7 @@ impl<Backing: BitGet> BitSlice<Backing> {
     /// use succinct_neo::traits::BitGet;
     ///
     /// let bv = BitVec::new(16);
-    /// let slice = bv.slice_bits(..);
+    /// let slice = bv.slice(..);
     ///
     /// let (left_part, right_part) = slice.split_at(4);
     ///
@@ -151,6 +139,30 @@ impl<Backing: BitGet> BitSlice<Backing> {
             BitSlice::new(&self.backing, self.start, self.start + index),
             BitSlice::new(&self.backing, self.start + index, self.end),
         )
+    }
+
+    /// Gets the value of the bit at an index without checking for bounds.
+    /// This is just an alias for [`BitGet::get_bit`].
+    ///
+    /// # Arguments
+    ///
+    /// * `index`: The index whose bit to read.
+    ///
+    /// # Safety
+    ///
+    /// The index must be in bounds.
+    pub unsafe fn get_unchecked(&self, index: usize) -> bool {
+        self.get_bit_unchecked(index)
+    }
+
+    /// Gets the value of the bit at an index.
+    /// This is just an alias for [`BitGet::get_bit`].
+    ///
+    /// # Arguments
+    ///
+    /// * `index`: The index whose bit to read.
+    pub fn get(&self, index: usize) -> bool {
+        self.get_bit(index)
     }
 }
 
@@ -170,9 +182,7 @@ impl<Backing: BitModify> BitSlice<Backing> {
     ///
     /// let mut bv = BitVec::new(16);
     ///
-    /// let mut slice = bv.slice_bits_mut(..);
-    ///
-    /// let (mut left_part, mut right_part) = slice.split_at_mut(4);
+    /// let (mut left_part, mut right_part) = bv.split_at_mut(4);
     ///
     /// left_part.set_bit(2, true);
     /// right_part.set_bit(7, true);
@@ -203,6 +213,56 @@ impl<Backing: BitModify> BitSlice<Backing> {
             )
         }
     }
+
+    /// Sets the bit at an index to a value without checking for bounds.
+    /// This is just an alias for [`BitModify::set_bit_unchecked`].
+    ///
+    /// # Arguments
+    ///
+    /// * `index`: The index whose bit to modify.
+    /// * `value`: The value to set the bit to. `true` represents a `1`, `false` represents a `0`;
+    ///
+    /// # Safety
+    ///
+    /// The index must be in bounds.
+    pub unsafe fn set_unchecked(&mut self, index: usize, value: bool) {
+        self.set_bit_unchecked(index, value)
+    }
+
+    /// Sets the bit at an index.
+    /// This is just an alias for [`BitModify::set_bit`].
+    ///
+    /// # Arguments
+    ///
+    /// * `index`: The index whose bit to modify.
+    /// * `value`: The value to set the bit to. `true` represents a `1`, `false` represents a `0`;
+    pub fn set(&mut self, index: usize, value: bool) {
+        self.set_bit(index, value)
+    }
+
+    /// Flips the bit at an index without checking for bounds.
+    /// This is just an alias for [`BitModify::flip_bit_unchecked`].
+    ///
+    /// # Arguments
+    ///
+    /// * `index`: The index whose bit to modify.
+    ///
+    /// # Safety
+    ///
+    /// The index must be in bounds.
+    pub unsafe fn flip_unchecked(&mut self, index: usize) {
+        self.flip_bit_unchecked(index)
+    }
+
+    /// Flips the bit at an index.
+    /// This is just an alias for [`BitModify::flip_bit`].
+    ///
+    /// # Arguments
+    ///
+    /// * `index`: The index whose bit to modify.
+    pub fn flip(&mut self, index: usize) {
+        self.flip_bit(index)
+    }
 }
 
 #[derive(Debug)]
@@ -224,10 +284,7 @@ impl<Backing> Iter<Backing> {
 
 #[cfg(test)]
 mod test {
-    use crate::{
-        bit_vec::BitVec,
-        traits::BitModify,
-    };
+    use crate::{bit_vec::BitVec, traits::BitModify};
 
     use super::BitSlice;
 
@@ -235,11 +292,11 @@ mod test {
     fn is_empty_test() {
         let mut bv = BitVec::new(80);
 
-        let slice = bv.slice_bits(40..40);
+        let slice = bv.slice(40..40);
         assert_eq!(0, slice.len(), "immutable slice not empty");
         assert!(slice.is_empty(), "immutable slice not empty");
 
-        let slice = bv.slice_bits_mut(40..40);
+        let slice = bv.slice_mut(40..40);
         assert_eq!(0, slice.len(), "mutable slice not empty");
         assert!(slice.is_empty(), "mutable slice not empty")
     }
@@ -248,7 +305,7 @@ mod test {
     fn iter_test() {
         let mut bv = BitVec::new(80);
 
-        let mut slice = bv.slice_bits_mut(20..40);
+        let mut slice = bv.slice_mut(20..40);
         for i in 0..slice.len() {
             slice.set_bit(i, (i / 5) % 2 == 0)
         }
@@ -262,7 +319,7 @@ mod test {
             )
         }
 
-        let slice = bv.slice_bits(20..40);
+        let slice = bv.slice(20..40);
         for (i, actual) in slice.iter().enumerate() {
             assert_eq!(
                 (i / 5) % 2 == 0,
@@ -283,10 +340,10 @@ mod test {
     #[test]
     fn debug_test() {
         let mut bv = BitVec::new(80);
-        let slice = bv.slice_bits_mut(20..40);
+        let slice = bv.slice_mut(20..40);
 
         println!("{slice:?}");
-        let slice = bv.slice_bits(10..50);
+        let slice = bv.slice(10..50);
         println!("{slice:?}");
         println!("{:?}", bv.iter());
     }
@@ -297,13 +354,13 @@ mod test {
         for i in 0..bv.len() {
             bv.set_bit(i, i % 2 == 0)
         }
-        let slice = bv.slice_bits(20..40);
+        let slice = bv.slice(20..40);
 
         let mut bv2 = bv.clone();
 
         let (l, r) = slice.split_at(10);
-        let slice_left = bv.slice_bits(20..30);
-        let slice_right = bv.slice_bits(30..40);
+        let slice_left = bv.slice(20..30);
+        let slice_right = bv.slice(30..40);
         assert_eq!(
             slice_left, l,
             "left-split part of immutable slice not the same"
@@ -313,11 +370,11 @@ mod test {
             "right-split part of immutable slice not the same"
         );
 
-        let mut slice = bv.slice_bits_mut(20..40);
+        let mut slice = bv.slice_mut(20..40);
 
         let (l, r) = slice.split_at(10);
-        let slice_left = bv2.slice_bits(20..30);
-        let slice_right = bv2.slice_bits(30..40);
+        let slice_left = bv2.slice(20..30);
+        let slice_right = bv2.slice(30..40);
         assert_eq!(
             slice_left, l,
             "left-split part of mutable slice not the same"
@@ -328,12 +385,12 @@ mod test {
         );
 
         let (l, r) = slice.split_at_mut(10);
-        let slice_left = bv2.slice_bits_mut(20..30);
+        let slice_left = bv2.slice_mut(20..30);
         assert_eq!(
             slice_left, l,
             "mutable left-split part of mutable slice not the same"
         );
-        let slice_right = bv2.slice_bits_mut(30..40);
+        let slice_right = bv2.slice_mut(30..40);
         assert_eq!(
             slice_right, r,
             "mutable right-split part of mutable slice not the same"

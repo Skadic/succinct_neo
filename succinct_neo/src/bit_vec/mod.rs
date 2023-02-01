@@ -1,14 +1,16 @@
-use std::borrow::Borrow;
 use std::fmt::{Debug, Formatter};
 use std::ops::{Deref, DerefMut};
 
 use itertools::Itertools;
 
 use crate::bit_vec::slice::BitSlice;
-use crate::traits::{BitGet, BitModify};
+use crate::traits::BitModify;
 
 use self::slice::Iter;
 
+/// Trait implementations for the backing type of BitVec
+mod backing;
+/// Bit slices offering views into types that offer bit access
 pub mod slice;
 
 /// The word size on this machine in bits
@@ -35,7 +37,7 @@ const WORD_MASK: usize = (1 << WORD_EXP) - 1;
 /// let mut bv = BitVec::new(16);
 ///
 /// // Views into the bit vector can be retrieved through slices
-/// let mut slice = bv.slice_bits_mut(4..8);
+/// let mut slice = bv.slice_mut(4..8);
 ///
 /// for i in 0..slice.len() {
 ///     slice.set_bit(i, true);
@@ -77,86 +79,12 @@ impl BitVec {
             size,
         }
     }
-
-    /// Sets the bit at an index to a value without checking for bounds.
-    /// This is just an alias for [`BitModify::set_bit_unchecked`].
-    /// 
-    /// # Arguments
-    ///
-    /// * `index`: The index whose bit to modify.
-    /// * `value`: The value to set the bit to. `true` represents a `1`, `false` represents a `0`;
-    ///
-    /// # Safety
-    ///
-    /// The index must be in bounds.
-    pub unsafe fn set_unchecked(&mut self, index: usize, value: bool) {
-        self.data.set_bit_unchecked(index, value)
-    }
-
-    /// Sets the bit at an index.
-    /// This is just an alias for [`BitModify::set_bit`].
-    /// 
-    /// # Arguments
-    ///
-    /// * `index`: The index whose bit to modify.
-    /// * `value`: The value to set the bit to. `true` represents a `1`, `false` represents a `0`;
-    pub fn set(&mut self, index: usize, value: bool) {
-        self.data.set_bit(index, value)
-    }
-
-    /// Flips the bit at an index without checking for bounds.
-    /// This is just an alias for [`BitModify::flip_bit_unchecked`].
-    /// 
-    /// # Arguments
-    ///
-    /// * `index`: The index whose bit to modify.
-    ///
-    /// # Safety
-    ///
-    /// The index must be in bounds.
-    pub unsafe fn flip_unchecked(&mut self, index: usize) {
-        self.data.flip_bit_unchecked(index)
-    }
-
-    /// Flips the bit at an index.
-    /// This is just an alias for [`BitModify::flip_bit`].
-    /// 
-    /// # Arguments
-    ///
-    /// * `index`: The index whose bit to modify.
-    pub fn flip(&mut self, index: usize) {
-        self.data.flip_bit(index)
-    }
-
-    /// Gets the value of the bit at an index without checking for bounds.
-    /// This is just an alias for [`BitGet::get_bit`].
-    /// 
-    /// # Arguments
-    ///
-    /// * `index`: The index whose bit to read.
-    /// 
-    /// # Safety
-    ///
-    /// The index must be in bounds.
-    pub unsafe fn get_unchecked(&mut self, index: usize) -> bool {
-        self.data.get_bit_unchecked(index)
-    }
-
-    /// Gets the value of the bit at an index.
-    /// This is just an alias for [`BitGet::get_bit`].
-    /// 
-    /// # Arguments
-    ///
-    /// * `index`: The index whose bit to read. 
-    pub fn get(&mut self, index: usize) -> bool {
-        self.data.get_bit(index)
-    }
 }
 
 impl BitModify for BitVec {
     #[inline]
     unsafe fn set_bit_unchecked(&mut self, index: usize, value: bool) {
-        self.data.set_bit_unchecked(index, value)
+        self.data.set_unchecked(index, value)
     }
 
     #[inline]
@@ -164,12 +92,12 @@ impl BitModify for BitVec {
         if index >= self.len() {
             panic!("index is {index} but length is {}", self.size)
         }
-        unsafe { self.set_bit_unchecked(index, value) }
+        unsafe { self.set_unchecked(index, value) }
     }
 
     #[inline]
     unsafe fn flip_bit_unchecked(&mut self, index: usize) {
-        self.data.flip_bit_unchecked(index)
+        self.data.flip_unchecked(index)
     }
 
     #[inline]
@@ -177,70 +105,17 @@ impl BitModify for BitVec {
         if index >= self.len() {
             panic!("index is {index} but length is {}", self.size)
         }
-        unsafe { self.flip_bit_unchecked(index) }
-    }
-}
-
-impl BitGet for [usize] {
-    #[inline]
-    unsafe fn get_bit_unchecked(&self, index: usize) -> bool {
-        let block_index = index >> WORD_EXP;
-        let internal_index = index & WORD_MASK;
-        unsafe { self.get_unchecked(block_index) & (1 << internal_index) > 0 }
-    }
-
-    #[inline]
-    fn get_bit(&self, index: usize) -> bool {
-        if index >= self.len() << WORD_EXP {
-            panic!("index is {index} but length is {}", self.len() << WORD_EXP)
-        }
-        unsafe { self.get_bit_unchecked(index) }
-    }
-}
-
-impl BitModify for [usize] {
-    unsafe fn set_bit_unchecked(&mut self, index: usize, value: bool) {
-        let block_index = index >> WORD_EXP;
-        let internal_index = index & WORD_MASK;
-
-        let block = unsafe { self.get_unchecked_mut(block_index) };
-
-        if value {
-            *block |= 1 << internal_index;
-        } else {
-            *block &= !(1 << internal_index);
-        }
-    }
-
-    fn set_bit(&mut self, index: usize, value: bool) {
-        if index >= self.len() << WORD_EXP {
-            panic!("index is {index} but length is {}", self.len() << WORD_EXP)
-        }
-        unsafe { self.set_bit_unchecked(index, value) }
-    }
-
-    unsafe fn flip_bit_unchecked(&mut self, index: usize) {
-        let block_index = index >> WORD_EXP;
-        let internal_index = index & WORD_MASK;
-
-        unsafe { *self.get_unchecked_mut(block_index) ^= 1 << internal_index }
-    }
-
-    fn flip_bit(&mut self, index: usize) {
-        if index >= self.len() << WORD_EXP {
-            panic!("index is {index} but length is {}", self.len() << WORD_EXP)
-        }
-        unsafe { self.flip_bit_unchecked(index) }
+        unsafe { self.flip_unchecked(index) }
     }
 }
 
 impl<'a> IntoIterator for &'a BitVec {
     type Item = bool;
 
-    type IntoIter = Iter<&'a [usize]>;
+    type IntoIter = Iter<&'a Box<[usize]>>;
 
     fn into_iter(self) -> Self::IntoIter {
-        Iter::new(self.backing().borrow(), 0, self.size)
+        self.data.iter()
     }
 }
 
@@ -312,7 +187,7 @@ mod test {
         }
 
         for i in 0..bv.len() {
-            assert_eq!(i % 3 == 0, bv.get_bit(i));
+            assert_eq!(i % 3 == 0, bv.get(i));
         }
     }
 
@@ -320,15 +195,15 @@ mod test {
     fn flip_test() {
         let mut bv = BitVec::new(160);
         for i in (0..bv.len()).step_by(3) {
-            bv.set_bit(i, true);
+            bv.set(i, true);
         }
 
         for i in 0..bv.len() {
-            bv.flip_bit(i);
+            bv.flip(i);
         }
 
         for i in 0..bv.len() {
-            assert_eq!(i % 3 != 0, bv.get_bit(i));
+            assert_eq!(i % 3 != 0, bv.get(i));
         }
     }
 
@@ -337,11 +212,11 @@ mod test {
         let mut bv = BitVec::new(160);
         let n = bv.size;
         for i in (0..bv.len()).step_by(3) {
-            bv.set_bit(i, true);
+            bv.set(i, true);
         }
 
         for i in 0..bv.len() {
-            bv.flip_bit(i);
+            bv.flip(i);
         }
 
         let iter = bv.into_iter();
@@ -356,20 +231,20 @@ mod test {
     #[should_panic]
     fn get_out_of_bounds_mut_test() {
         let bv = BitVec::new(20);
-        bv.get_bit(20);
+        bv.get(20);
     }
 
     #[test]
     #[should_panic]
     fn set_out_of_bounds_test() {
         let mut bv = BitVec::new(20);
-        bv.set_bit(20, true);
+        bv.set(20, true);
     }
 
     #[test]
     #[should_panic]
     fn flip_out_of_bounds_test() {
         let mut bv = BitVec::new(20);
-        bv.flip_bit(20);
+        bv.flip(20);
     }
 }

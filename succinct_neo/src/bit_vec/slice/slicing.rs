@@ -1,7 +1,6 @@
-use std::ops::{RangeBounds, Bound};
+use std::ops::{Bound, RangeBounds};
 
 use super::BitSlice;
-
 
 impl<Backing> BitSlice<Backing> {
     /// Gets an immutable view into the data structure without checking for bounds and validity.
@@ -20,15 +19,15 @@ impl<Backing> BitSlice<Backing> {
     /// let bv = BitVec::new(16);
     ///
     /// // extracts bits 4 to inclusively 7.
-    /// let slice = unsafe { bv.slice_bits_unchecked(4..8) };
+    /// let slice = unsafe { bv.slice_unchecked(4..8) };
     ///
     /// assert_eq!(4, slice.len());
     /// ```
-    /// 
+    ///
     /// # Safety
-    /// 
+    ///
     /// The end bound may not be greater than the start bound and both bounds must be at most equal to this slice's length.
-    pub unsafe fn slice_bits_unchecked(&self, r: impl RangeBounds<usize>) -> BitSlice<&Backing> {
+    pub unsafe fn slice_unchecked(&self, r: impl RangeBounds<usize>) -> BitSlice<&Backing> {
         let start = match r.start_bound() {
             Bound::Excluded(&s) => s + 1,
             Bound::Included(&s) => s,
@@ -59,11 +58,11 @@ impl<Backing> BitSlice<Backing> {
     /// let bv = BitVec::new(16);
     ///
     /// // extracts bits 4 to inclusively 7.
-    /// let slice = bv.slice_bits(4..8);
+    /// let slice = bv.slice(4..8);
     ///
     /// assert_eq!(4, slice.len());
     /// ```
-    pub fn slice_bits(&self, r: impl RangeBounds<usize>) -> BitSlice<&Backing> {
+    pub fn slice(&self, r: impl RangeBounds<usize>) -> BitSlice<&Backing> {
         let start = match r.start_bound() {
             Bound::Excluded(&s) => s + 1,
             Bound::Included(&s) => s,
@@ -107,7 +106,7 @@ impl<Backing> BitSlice<Backing> {
     /// let mut bv = BitVec::new(16);
     ///
     /// // Extracts bits 4 to inclusively 7.
-    /// let mut slice = unsafe { bv.slice_bits_unchecked_mut(4..8) };
+    /// let mut slice = unsafe { bv.slice_unchecked_mut(4..8) };
     /// assert_eq!(4, slice.len());
     ///
     /// assert_eq!(false, slice.get_bit(3));
@@ -117,11 +116,11 @@ impl<Backing> BitSlice<Backing> {
     ///
     /// assert_eq!(true, slice.get_bit(3));
     /// ```
-    /// 
+    ///
     /// # Safety
-    /// 
+    ///
     /// The end bound may not be greater than the start bound and both bounds must be at most equal to this slice's length.
-    pub unsafe fn slice_bits_unchecked_mut(
+    pub unsafe fn slice_unchecked_mut(
         &mut self,
         r: impl RangeBounds<usize>,
     ) -> BitSlice<&mut Backing> {
@@ -158,7 +157,7 @@ impl<Backing> BitSlice<Backing> {
     /// let mut bv = BitVec::new(16);
     ///
     /// // Extracts bits 4 to inclusively 7.
-    /// let mut slice = bv.slice_bits_mut(4..8);
+    /// let mut slice = bv.slice_mut(4..8);
     /// assert_eq!(4, slice.len());
     ///
     /// assert_eq!(false, slice.get_bit(3));
@@ -168,7 +167,7 @@ impl<Backing> BitSlice<Backing> {
     ///
     /// assert_eq!(true, slice.get_bit(3));
     /// ```
-    pub fn slice_bits_mut(&mut self, r: impl RangeBounds<usize>) -> BitSlice<&mut Backing> {
+    pub fn slice_mut(&mut self, r: impl RangeBounds<usize>) -> BitSlice<&mut Backing> {
         let start = match r.start_bound() {
             Bound::Excluded(&s) => s + 1,
             Bound::Included(&s) => s,
@@ -191,5 +190,95 @@ impl<Backing> BitSlice<Backing> {
         }
 
         BitSlice::new(&mut self.backing, self.start + start, self.start + end)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use std::ops::{Bound, RangeBounds};
+
+    use crate::bit_vec::BitVec;
+    /// Range with exclusive start and end index
+    struct ExclusiveRange<const S: usize, const E: usize>;
+
+    impl<const S: usize, const E: usize> RangeBounds<usize> for ExclusiveRange<S, E> {
+        fn start_bound(&self) -> std::ops::Bound<&usize> {
+            Bound::Excluded(&S)
+        }
+
+        fn end_bound(&self) -> std::ops::Bound<&usize> {
+            Bound::Excluded(&E)
+        }
+    }
+
+    #[test]
+    #[should_panic]
+    fn left_out_of_bounds() {
+        let bv = BitVec::new(4);
+        bv.slice(5..);
+    }
+
+    #[test]
+    #[should_panic]
+    fn right_out_of_bounds() {
+        let bv = BitVec::new(4);
+        bv.slice(..5);
+    }
+
+    #[test]
+    #[should_panic]
+    fn invalid_bounds() {
+        let bv = BitVec::new(4);
+        bv.slice(ExclusiveRange::<2, 0>);
+    }
+
+    #[test]
+    #[should_panic]
+    fn left_out_of_bounds_mut() {
+        let mut bv = BitVec::new(4);
+        bv.slice_mut(5..);
+    }
+
+    #[test]
+    #[should_panic]
+    fn right_out_of_bounds_mut() {
+        let mut bv = BitVec::new(4);
+        bv.slice_mut(..5);
+    }
+
+    #[test]
+    #[should_panic]
+    fn invalid_bounds_mut() {
+        let mut bv = BitVec::new(4);
+        bv.slice_mut(ExclusiveRange::<2, 0>);
+    }
+
+    #[test]
+    fn slice_unchecked_test() {
+        let mut bv = BitVec::new(60);
+
+        let mut slice = unsafe { bv.slice_unchecked_mut(20..40) };
+
+        for i in 0..slice.len() {
+            slice.set(i, (i / 3) % 2 == 0);
+        }
+
+        unsafe {
+            assert_eq!(bv.slice(..=30), bv.slice_unchecked(..=30));
+            assert_eq!(bv.slice(20..), bv.slice_unchecked(20..));
+            assert_eq!(
+                bv.slice(ExclusiveRange::<10, 25>),
+                bv.slice_unchecked(ExclusiveRange::<10, 25>)
+            );
+
+            let bv2 = bv.clone();
+
+            assert_eq!(bv2.slice(..=30), bv.slice_unchecked_mut(..=30));
+            assert_eq!(bv2.slice(20..), bv.slice_unchecked_mut(20..));
+            assert_eq!(
+                bv2.slice(ExclusiveRange::<10, 25>),
+                bv.slice_unchecked_mut(ExclusiveRange::<10, 25>)
+            );
+        }
     }
 }
