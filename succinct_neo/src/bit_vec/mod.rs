@@ -1,3 +1,4 @@
+use std::borrow::Borrow;
 use std::fmt::{Debug, Formatter};
 use std::ops::{Deref, DerefMut};
 
@@ -19,6 +20,32 @@ const WORD_EXP: usize = 6;
 /// A mask for quickly calculating the modulus
 const WORD_MASK: usize = (1 << WORD_EXP) - 1;
 
+///
+/// A fixed-size bit vector allocated on the heap.
+///
+/// # Examples
+///
+/// ```
+/// use succinct_neo::{
+///     bit_vec::BitVec,
+///     traits::{BitModify, BitGet},
+/// };
+///
+/// // A bit vector with space for 16 bits
+/// let mut bv = BitVec::new(16);
+///
+/// // Views into the bit vector can be retrieved through slices
+/// let mut slice = bv.slice_bits_mut(4..8);
+///
+/// for i in 0..slice.len() {
+///     slice.set_bit(i, true);
+/// }
+///
+/// for i in 0..bv.len() {
+///     assert_eq!(4 <= i && i < 8, bv.get_bit(i))
+/// }
+/// ```
+///
 #[derive(Clone)]
 pub struct BitVec {
     data: BitSlice<Box<[usize]>>,
@@ -26,6 +53,22 @@ pub struct BitVec {
 }
 
 impl BitVec {
+    /// Creates a new [`BitVec`].
+    ///
+    /// # Arguments
+    ///
+    /// * `size`: The size of this bitvector.
+    ///
+    /// returns: A new bit vector with all indices set to 0.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use succinct_neo::bit_vec::BitVec;
+    ///
+    /// // A bit vector with space for 16 bits
+    /// let bv = BitVec::new(16);
+    /// ```
     pub fn new(size: usize) -> Self {
         let v = vec![0usize; (size as f64 / WORD_SIZE as f64).ceil() as usize];
         let b = v.into_boxed_slice();
@@ -35,32 +78,78 @@ impl BitVec {
         }
     }
 
-    pub fn len(&self) -> usize {
-        self.size
+    /// Sets the bit at an index to a value without checking for bounds.
+    /// This is just an alias for [`BitModify::set_bit_unchecked`].
+    /// 
+    /// # Arguments
+    ///
+    /// * `index`: The index whose bit to modify.
+    /// * `value`: The value to set the bit to. `true` represents a `1`, `false` represents a `0`;
+    ///
+    /// # Safety
+    ///
+    /// The index must be in bounds.
+    pub unsafe fn set_unchecked(&mut self, index: usize, value: bool) {
+        self.data.set_bit_unchecked(index, value)
     }
 
-    #[allow(clippy::borrowed_box)]
-    pub fn iter(&self) -> Iter<&Box<[usize]>> {
-        self.data.iter()
+    /// Sets the bit at an index.
+    /// This is just an alias for [`BitModify::set_bit`].
+    /// 
+    /// # Arguments
+    ///
+    /// * `index`: The index whose bit to modify.
+    /// * `value`: The value to set the bit to. `true` represents a `1`, `false` represents a `0`;
+    pub fn set(&mut self, index: usize, value: bool) {
+        self.data.set_bit(index, value)
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.size == 0
+    /// Flips the bit at an index without checking for bounds.
+    /// This is just an alias for [`BitModify::flip_bit_unchecked`].
+    /// 
+    /// # Arguments
+    ///
+    /// * `index`: The index whose bit to modify.
+    ///
+    /// # Safety
+    ///
+    /// The index must be in bounds.
+    pub unsafe fn flip_unchecked(&mut self, index: usize) {
+        self.data.flip_bit_unchecked(index)
     }
-}
 
-impl BitGet for BitVec {
-    #[inline]
-    unsafe fn get_bit_unchecked(&self, index: usize) -> bool {
+    /// Flips the bit at an index.
+    /// This is just an alias for [`BitModify::flip_bit`].
+    /// 
+    /// # Arguments
+    ///
+    /// * `index`: The index whose bit to modify.
+    pub fn flip(&mut self, index: usize) {
+        self.data.flip_bit(index)
+    }
+
+    /// Gets the value of the bit at an index without checking for bounds.
+    /// This is just an alias for [`BitGet::get_bit`].
+    /// 
+    /// # Arguments
+    ///
+    /// * `index`: The index whose bit to read.
+    /// 
+    /// # Safety
+    ///
+    /// The index must be in bounds.
+    pub unsafe fn get_unchecked(&mut self, index: usize) -> bool {
         self.data.get_bit_unchecked(index)
     }
 
-    #[inline]
-    fn get_bit(&self, index: usize) -> bool {
-        if index >= self.len() {
-            panic!("index is {index} but length is {}", self.size)
-        }
-        unsafe { self.get_bit_unchecked(index) }
+    /// Gets the value of the bit at an index.
+    /// This is just an alias for [`BitGet::get_bit`].
+    /// 
+    /// # Arguments
+    ///
+    /// * `index`: The index whose bit to read. 
+    pub fn get(&mut self, index: usize) -> bool {
+        self.data.get_bit(index)
     }
 }
 
@@ -148,10 +237,10 @@ impl BitModify for [usize] {
 impl<'a> IntoIterator for &'a BitVec {
     type Item = bool;
 
-    type IntoIter = Iter<Self>;
+    type IntoIter = Iter<&'a [usize]>;
 
     fn into_iter(self) -> Self::IntoIter {
-        Iter::new(self, 0, self.size)
+        Iter::new(self.backing().borrow(), 0, self.size)
     }
 }
 

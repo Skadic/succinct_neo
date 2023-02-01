@@ -6,8 +6,6 @@ use num::{
     FromPrimitive, Integer, ToPrimitive, Unsigned,
 };
 
-use crate::bit_vec::slice::BitSlice;
-
 /// A trait supporting basic primitve integer operations, used for block types in compressed data structures.
 pub trait BlockType:
     Unsigned
@@ -218,65 +216,6 @@ pub trait BitModify {
     ///
     /// * `index`: The index of the bit to flip.
     fn flip_bit(&mut self, index: usize);
-}
-
-/// Allows retrieving a view into a bit-storing data structure.
-pub trait SliceBit<Index>: Sized {
-    /// Gets an immutable view into the data structure.
-    ///
-    /// # Arguments
-    ///
-    /// * `index`: The index which defines the slice to extract.
-    ///
-    /// returns: An immutable bit-view into the underlying data structure.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use succinct_neo::{
-    ///     bit_vec::BitVec,
-    ///     traits::SliceBit,
-    /// };
-    ///
-    /// let bv = BitVec::new(16);
-    ///
-    /// // extracts bits 4 to inclusively 7.
-    /// let slice = bv.slice_bits(4..8);
-    ///
-    /// assert_eq!(4, slice.len());
-    /// ```
-    fn slice_bits(&self, index: Index) -> BitSlice<&Self>;
-
-    /// Gets a mutable view into the data structure.
-    ///
-    /// # Arguments
-    ///
-    /// * `index`: The index which defines the slice to extract.
-    ///
-    /// returns: A mutable bit-view into the underlying data structure.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use succinct_neo::{
-    ///     bit_vec::BitVec,
-    ///     traits::{SliceBit, BitModify, BitGet},
-    /// };
-    ///
-    /// let mut bv = BitVec::new(16);
-    ///
-    /// // Extracts bits 4 to inclusively 7.
-    /// let mut slice = bv.slice_bits_mut(4..8);
-    /// assert_eq!(4, slice.len());
-    ///
-    /// assert_eq!(false, slice.get_bit(3));
-    ///
-    /// // We can modify the slice!
-    /// slice.set_bit(3, true);
-    ///
-    /// assert_eq!(true, slice.get_bit(3));
-    /// ```
-    fn slice_bits_mut(&mut self, index: Index) -> BitSlice<&mut Self>;
 }
 
 pub trait BitAccess: BitGet + BitModify {}

@@ -1,6 +1,7 @@
 use crate::traits::{BitGet, BitModify};
 
 mod trait_impls;
+mod slicing;
 
 /// A view into a segment of a type which supports `BitGet` and/or `BitModify` if the backing type supports it respectively.
 ///
@@ -14,7 +15,7 @@ mod trait_impls;
 ///
 /// ```
 /// use succinct_neo::bit_vec::{BitVec, slice::BitSlice};
-/// use succinct_neo::traits::{BitGet, BitModify, SliceBit};
+/// use succinct_neo::traits::{BitGet, BitModify};
 ///
 /// let mut bv = BitVec::new(16);
 /// let mut slice = bv.slice_bits_mut(8..10);
@@ -50,7 +51,7 @@ impl<Backing> BitSlice<Backing> {
     /// use succinct_neo::traits::BitGet;
     ///
     /// let bv = BitVec::new(16);
-    /// let slice = BitSlice::new(&bv, 4, 10);
+    /// let slice = BitSlice::new(&*bv, 4, 10);
     ///
     /// assert_eq!(false, slice.get_bit(3));
     /// ```
@@ -100,7 +101,7 @@ impl<Backing: BitGet> BitSlice<Backing> {
     ///
     /// ```
     /// use succinct_neo::bit_vec::{BitVec, slice::BitSlice};
-    /// use succinct_neo::traits::{BitGet, BitModify, SliceBit};
+    /// use succinct_neo::traits::{BitGet, BitModify};
     ///
     /// let mut bv = BitVec::new(16);
     /// bv.set_bit(6, true);
@@ -129,7 +130,7 @@ impl<Backing: BitGet> BitSlice<Backing> {
     ///
     /// ```
     /// use succinct_neo::bit_vec::{BitVec, slice::BitSlice};
-    /// use succinct_neo::traits::{BitGet, SliceBit};
+    /// use succinct_neo::traits::BitGet;
     ///
     /// let bv = BitVec::new(16);
     /// let slice = bv.slice_bits(..);
@@ -165,7 +166,7 @@ impl<Backing: BitModify> BitSlice<Backing> {
     ///
     /// ```
     /// use succinct_neo::bit_vec::{BitVec, slice::BitSlice};
-    /// use succinct_neo::traits::{BitGet, BitModify, SliceBit};
+    /// use succinct_neo::traits::{BitGet, BitModify};
     ///
     /// let mut bv = BitVec::new(16);
     ///
@@ -225,7 +226,7 @@ impl<Backing> Iter<Backing> {
 mod test {
     use crate::{
         bit_vec::BitVec,
-        traits::{BitModify, SliceBit},
+        traits::BitModify,
     };
 
     use super::BitSlice;

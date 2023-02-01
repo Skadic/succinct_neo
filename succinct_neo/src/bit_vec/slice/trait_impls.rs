@@ -1,6 +1,4 @@
-use std::ops::{Bound, RangeBounds};
-
-use crate::traits::{BitGet, BitModify, SliceBit};
+use crate::traits::{BitGet, BitModify};
 
 use super::{BitSlice, Iter};
 
@@ -94,51 +92,11 @@ impl<'a, Backing: BitGet> IntoIterator for &'a BitSlice<Backing> {
     }
 }
 
-// ------------------ SLICE BITS ------------------
-
-impl<T, R> SliceBit<R> for T
-where
-    T: BitGet,
-    R: RangeBounds<usize>,
-    for<'a> &'a T: IntoIterator,
-    for<'a> <&'a T as IntoIterator>::IntoIter: ExactSizeIterator,
-{
-    fn slice_bits(&self, r: R) -> BitSlice<&Self> {
-        let start = match r.start_bound() {
-            Bound::Excluded(&s) => s + 1,
-            Bound::Included(&s) => s,
-            Bound::Unbounded => 0,
-        };
-        let end = match r.end_bound() {
-            Bound::Excluded(&e) => e,
-            Bound::Included(&e) => e + 1,
-            Bound::Unbounded => self.into_iter().len(),
-        };
-
-        BitSlice::new(self, start, end)
-    }
-
-    fn slice_bits_mut(&mut self, r: R) -> BitSlice<&mut Self> {
-        let start = match r.start_bound() {
-            Bound::Excluded(&s) => s + 1,
-            Bound::Included(&s) => s,
-            Bound::Unbounded => 0,
-        };
-        let end = match r.end_bound() {
-            Bound::Excluded(&e) => e,
-            Bound::Included(&e) => e + 1,
-            Bound::Unbounded => self.into_iter().len(),
-        };
-
-        BitSlice::new(self, start, end)
-    }
-}
-
 #[cfg(test)]
 mod test {
     use crate::{
         bit_vec::BitVec,
-        traits::{BitGet, BitModify, SliceBit},
+        traits::{BitGet, BitModify},
     };
 
     #[test]
