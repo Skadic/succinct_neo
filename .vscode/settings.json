@@ -29,8 +29,6 @@
     "coverage-gutters.showRulerCoverage": true,
     "coverage-gutters.coverageFileNames": [
         "coverage/tests.xml",
-        "tests.lcov",
-        "coverage/tests.lcov",
         "lcov.info",
         "cov.xml",
         "coverage.xml",
@@ -38,5 +36,4 @@
         "coverage.cobertura.xml"
     ],
     "catppuccin.accentColor": "green",
-    "markiscodecoverage.searchCriteria": "coverage/tests.lcov",
 }
