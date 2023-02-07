@@ -14,10 +14,9 @@ mod trait_impls;
 /// # Examples
 ///
 /// ```
-/// use succinct_neo::bit_vec::{BitVec, slice::BitSlice};
-/// use succinct_neo::traits::{BitGet, BitModify};
+/// use succinct_neo::bit_vec::{BitGet, BitModify, BitVec, slice::BitSlice};
 ///
-/// let mut bv = BitVec::new(16);
+/// let mut bv = BitVec::new(20);
 /// let mut slice = bv.slice_mut(8..10);
 /// assert_eq!(2, slice.len());
 ///
@@ -47,8 +46,7 @@ impl<Backing> BitSlice<Backing> {
     /// # Examples
     ///
     /// ```
-    /// use succinct_neo::bit_vec::{BitVec, slice::BitSlice};
-    /// use succinct_neo::traits::BitGet;
+    /// use succinct_neo::bit_vec::{BitGet, BitVec, slice::BitSlice};
     ///
     /// let bv = BitVec::new(16);
     /// let slice = BitSlice::new(&*bv, 4, 10);
@@ -88,8 +86,7 @@ impl<Backing: BitGet> BitSlice<Backing> {
     /// # Examples
     ///
     /// ```
-    /// use succinct_neo::bit_vec::{BitVec, slice::BitSlice};
-    /// use succinct_neo::traits::{BitGet, BitModify};
+    /// use succinct_neo::bit_vec::{BitGet, BitModify, BitVec, slice::BitSlice};
     ///
     /// let mut bv = BitVec::new(16);
     /// bv.set_bit(6, true);
@@ -117,8 +114,7 @@ impl<Backing: BitGet> BitSlice<Backing> {
     /// # Examples
     ///
     /// ```
-    /// use succinct_neo::bit_vec::{BitVec, slice::BitSlice};
-    /// use succinct_neo::traits::BitGet;
+    /// use succinct_neo::bit_vec::{BitGet, BitVec, slice::BitSlice};
     ///
     /// let bv = BitVec::new(16);
     /// let slice = bv.slice(..);
@@ -177,8 +173,7 @@ impl<Backing: BitModify> BitSlice<Backing> {
     /// # Examples
     ///
     /// ```
-    /// use succinct_neo::bit_vec::{BitVec, slice::BitSlice};
-    /// use succinct_neo::traits::{BitGet, BitModify};
+    /// use succinct_neo::bit_vec::{BitGet, BitModify, BitVec, slice::BitSlice};
     ///
     /// let mut bv = BitVec::new(16);
     ///

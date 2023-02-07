@@ -98,10 +98,7 @@ impl<Backing> BitSlice<Backing> {
     /// # Examples
     ///
     /// ```
-    /// use succinct_neo::{
-    ///     bit_vec::BitVec,
-    ///     traits::{BitModify, BitGet},
-    /// };
+    /// use succinct_neo::bit_vec::{BitVec, BitModify, BitGet};
     ///
     /// let mut bv = BitVec::new(16);
     ///
@@ -149,10 +146,7 @@ impl<Backing> BitSlice<Backing> {
     /// # Examples
     ///
     /// ```
-    /// use succinct_neo::{
-    ///     bit_vec::BitVec,
-    ///     traits::{BitModify, BitGet},
-    /// };
+    /// use succinct_neo::bit_vec::{BitVec, BitModify, BitGet};
     ///
     /// let mut bv = BitVec::new(16);
     ///

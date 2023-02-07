@@ -29,10 +29,7 @@ const WORD_MASK: usize = (1 << WORD_EXP) - 1;
 /// # Examples
 ///
 /// ```
-/// use succinct_neo::{
-///     bit_vec::BitVec,
-///     traits::{BitModify, BitGet},
-/// };
+/// use succinct_neo::bit_vec::{BitVec, BitModify, BitGet};
 ///
 /// // A bit vector with space for 16 bits
 /// let mut bv = BitVec::new(16);
