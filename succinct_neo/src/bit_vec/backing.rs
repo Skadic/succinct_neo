@@ -1,4 +1,4 @@
-use crate::traits::{BitGet, BitModify};
+use super::{BitGet, BitModify};
 
 use super::{WORD_EXP, WORD_MASK};
 

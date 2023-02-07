@@ -1,6 +1,8 @@
 use core::panic;
 
-use crate::traits::IntAccess;
+pub use traits::IntAccess;
+
+mod traits;
 
 #[derive(Debug)]
 pub struct IntVec {
@@ -233,9 +235,7 @@ impl ExactSizeIterator for Iter<'_> {
 
 #[cfg(test)]
 mod test {
-    use crate::traits::IntAccess;
-
-    use super::IntVec;
+    use super::{traits::IntAccess, IntVec};
 
     #[test]
     fn basics_test() {

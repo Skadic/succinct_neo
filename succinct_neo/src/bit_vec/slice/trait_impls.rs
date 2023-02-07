@@ -1,6 +1,4 @@
-use crate::traits::{BitGet, BitModify};
-
-use super::{BitSlice, Iter};
+use super::{BitGet, BitModify, BitSlice, Iter};
 
 impl<B1: BitGet, B2: BitGet> PartialEq<BitSlice<B2>> for BitSlice<B1> {
     fn eq(&self, other: &BitSlice<B2>) -> bool {
@@ -94,10 +92,8 @@ impl<'a, Backing: BitGet> IntoIterator for &'a BitSlice<Backing> {
 
 #[cfg(test)]
 mod test {
-    use crate::{
-        bit_vec::BitVec,
-        traits::{BitGet, BitModify},
-    };
+    use crate::bit_vec::BitVec;
+    use super::{BitGet, BitModify};
 
     #[test]
     fn full_range_test() {

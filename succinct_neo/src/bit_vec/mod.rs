@@ -4,7 +4,7 @@ use std::ops::{Deref, DerefMut};
 use itertools::Itertools;
 
 use crate::bit_vec::slice::BitSlice;
-use crate::traits::BitModify;
+pub use traits::*;
 
 use self::slice::Iter;
 
@@ -12,6 +12,7 @@ use self::slice::Iter;
 mod backing;
 /// Bit slices offering views into types that offer bit access
 pub mod slice;
+pub mod traits;
 
 /// The word size on this machine in bits
 const WORD_SIZE: usize = 64;
@@ -165,7 +166,7 @@ impl AsMut<BitSlice<Box<[usize]>>> for BitVec {
 
 #[cfg(test)]
 mod test {
-    use crate::traits::{BitGet, BitModify};
+    use super::traits::BitModify;
 
     use super::BitVec;
 

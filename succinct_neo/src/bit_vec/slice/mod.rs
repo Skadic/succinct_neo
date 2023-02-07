@@ -1,4 +1,4 @@
-use crate::traits::{BitGet, BitModify};
+use super::{BitGet, BitModify};
 
 mod slicing;
 mod trait_impls;
@@ -284,10 +284,9 @@ impl<Backing> Iter<Backing> {
 
 #[cfg(test)]
 mod test {
-    use crate::{bit_vec::BitVec, traits::BitModify};
-
-    use super::BitSlice;
-
+    use crate::bit_vec::BitVec;
+    use super::{BitModify, BitSlice};
+    
     #[test]
     fn is_empty_test() {
         let mut bv = BitVec::new(80);
