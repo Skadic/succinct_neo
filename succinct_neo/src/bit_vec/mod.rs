@@ -3,8 +3,9 @@ use std::ops::{Deref, DerefMut};
 
 use itertools::Itertools;
 
-use crate::bit_vec::slice::BitSlice;
 pub use traits::*;
+
+use crate::bit_vec::slice::BitSlice;
 
 use self::slice::Iter;
 
@@ -77,12 +78,16 @@ impl BitVec {
             size,
         }
     }
+
+    pub fn raw(&self) -> &[usize] {
+        self.data.backing()
+    }
 }
 
 impl BitModify for BitVec {
     #[inline]
     unsafe fn set_bit_unchecked(&mut self, index: usize, value: bool) {
-        self.data.set_unchecked(index, value)
+        self.data.set_bit_unchecked(index, value)
     }
 
     #[inline]
@@ -90,12 +95,12 @@ impl BitModify for BitVec {
         if index >= self.len() {
             panic!("index is {index} but length is {}", self.size)
         }
-        unsafe { self.set_unchecked(index, value) }
+        unsafe { self.set_bit_unchecked(index, value) }
     }
 
     #[inline]
     unsafe fn flip_bit_unchecked(&mut self, index: usize) {
-        self.data.flip_unchecked(index)
+        self.data.flip_bit_unchecked(index)
     }
 
     #[inline]
@@ -103,7 +108,7 @@ impl BitModify for BitVec {
         if index >= self.len() {
             panic!("index is {index} but length is {}", self.size)
         }
-        unsafe { self.flip_unchecked(index) }
+        unsafe { self.flip_bit_unchecked(index) }
     }
 }
 
@@ -155,6 +160,12 @@ impl AsRef<BitSlice<Box<[usize]>>> for BitVec {
     }
 }
 
+impl AsRef<[usize]> for BitVec {
+    fn as_ref(&self) -> &[usize] {
+        self.data.backing()
+    }
+}
+
 impl AsMut<BitSlice<Box<[usize]>>> for BitVec {
     fn as_mut(&mut self) -> &mut BitSlice<Box<[usize]>> {
         &mut self.data
@@ -163,9 +174,11 @@ impl AsMut<BitSlice<Box<[usize]>>> for BitVec {
 
 #[cfg(test)]
 mod test {
-    use super::traits::BitModify;
+    use crate::bit_vec::BitGet;
+    use crate::bit_vec::slice::BitSlice;
 
     use super::BitVec;
+    use super::traits::BitModify;
 
     #[test]
     fn basics_test() {
@@ -175,17 +188,38 @@ mod test {
         let bv = BitVec::new(0);
         assert_eq!(0, bv.len(), "length incorrect");
         assert!(bv.is_empty(), "bv not empty despite length being 0");
+
+        let mut bv = BitVec::new(80);
+        bv.set(10, true);
+
+        assert_eq!(bv.backing(), AsRef::<BitSlice<_>>::as_ref(&bv).backing());
+        assert_eq!(bv.raw(), AsRef::<[usize]>::as_ref(&bv));
+        assert_eq!(bv.backing(), bv.clone().as_mut().backing());
+
+        println!("{bv:?}")
     }
 
     #[test]
     fn set_get_test() {
         let mut bv = BitVec::new(160);
         for i in (0..bv.len()).step_by(3) {
-            bv.set_bit(i, true);
+            bv.set(i, true);
         }
 
         for i in 0..bv.len() {
             assert_eq!(i % 3 == 0, bv.get(i));
+        }
+    }
+
+    #[test]
+    fn set_get_bit_test() {
+        let mut bv = BitVec::new(160);
+        for i in (0..bv.len()).step_by(3) {
+            bv.set_bit(i, true);
+        }
+
+        for i in 0..bv.len() {
+            assert_eq!(i % 3 == 0, bv.get_bit(i));
         }
     }
 
@@ -201,7 +235,23 @@ mod test {
         }
 
         for i in 0..bv.len() {
-            assert_eq!(i % 3 != 0, bv.get(i));
+            assert_eq!(i % 3 != 0, bv.get_bit(i));
+        }
+    }
+
+    #[test]
+    fn flip_bit_test() {
+        let mut bv = BitVec::new(160);
+        for i in (0..bv.len()).step_by(3) {
+            bv.set_bit(i, true);
+        }
+
+        for i in 0..bv.len() {
+            bv.flip_bit(i);
+        }
+
+        for i in 0..bv.len() {
+            assert_eq!(i % 3 != 0, bv.get_bit(i));
         }
     }
 
@@ -244,5 +294,26 @@ mod test {
     fn flip_out_of_bounds_test() {
         let mut bv = BitVec::new(20);
         bv.flip(20);
+    }
+
+    #[test]
+    #[should_panic]
+    fn get_bit_out_of_bounds_mut_test() {
+        let bv = BitVec::new(20);
+        bv.get_bit(20);
+    }
+
+    #[test]
+    #[should_panic]
+    fn set_bit_out_of_bounds_test() {
+        let mut bv = BitVec::new(20);
+        bv.set_bit(20, true);
+    }
+
+    #[test]
+    #[should_panic]
+    fn flip_bit_out_of_bounds_test() {
+        let mut bv = BitVec::new(20);
+        bv.flip_bit(20);
     }
 }

@@ -1,5 +1,4 @@
 use super::{BitGet, BitModify};
-
 use super::{WORD_EXP, WORD_MASK};
 
 impl BitGet for [usize] {
@@ -52,5 +51,52 @@ impl BitModify for [usize] {
             panic!("index is {index} but length is {}", self.len() << WORD_EXP)
         }
         unsafe { self.flip_bit_unchecked(index) }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::bit_vec::{BitGet, BitModify};
+
+    #[test]
+    fn op_test() {
+        let mut slice = [0b1100_1100_1010_1010usize];
+
+        for i in 0..slice.len() {
+            slice.set_bit(i, if i < 8 { i % 2 == 1 } else { (i / 2) % 2 == 1 })
+        }
+
+        for i in 0..slice.len() {
+            assert_eq!(if i < 8 { i % 2 == 1 } else { (i / 2) % 2 == 1 }, slice.get_bit(i))
+        }
+
+        for i in 0..slice.len() {
+            slice.flip_bit(i)
+        }
+
+        for i in 0..slice.len() {
+            assert_eq!(if i < 8 { i % 2 == 0 } else { (i / 2) % 2 == 0 }, slice.get_bit(i))
+        }
+    }
+
+    #[test]
+    #[should_panic]
+    fn get_out_of_bounds_test() {
+        let slice = [0b1100_1100_1010_1010usize];
+        slice.get_bit(100);
+    }
+
+    #[test]
+    #[should_panic]
+    fn set_out_of_bounds_test() {
+        let mut slice = [0b1100_1100_1010_1010usize];
+        slice.set_bit(100, true);
+    }
+
+    #[test]
+    #[should_panic]
+    fn flip_out_of_bounds_test() {
+        let mut slice = [0b1100_1100_1010_1010usize];
+        slice.flip_bit(100);
     }
 }
