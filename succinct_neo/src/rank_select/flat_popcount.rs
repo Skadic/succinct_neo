@@ -78,7 +78,7 @@ impl<'a> FlatPopcount<'a> {
     }
 
     #[inline]
-    fn rough_rank(&self, l1_index: usize, l2_index: usize) -> usize {
+    fn rough_rank_1(&self, l1_index: usize, l2_index: usize) -> usize {
         (if l2_index == 0 {
             let entry = unsafe { *self.l1_index.get_unchecked(l1_index) };
             entry >> 84
@@ -106,7 +106,7 @@ impl RankSupport for FlatPopcount<'_> {
         // remaining number of bits to cover
         let rest_bits = internal_index - (full_remaining_words << 6);
 
-        let mut ones = self.rough_rank(l1_index, l2_index);
+        let mut ones = self.rough_rank_1(l1_index, l2_index);
         let raw_backing = self.backing.raw();
         let word_start = (l1_index << 6) + (l2_index << 3);
         for i in 0..full_remaining_words {
