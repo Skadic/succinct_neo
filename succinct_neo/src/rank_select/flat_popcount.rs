@@ -2,33 +2,68 @@ use crate::bit_vec::BitVec;
 
 use super::traits::RankSupport;
 
+/// The number of bits in an L1 block
 const L1_BLOCK_SIZE: usize = 4096;
 
+/// $2^12 = 4096$, the L1 block size 
 const L1_BLOCK_SIZE_EXP: usize = 12;
+/// $2^12 = 512$, the L2 block size
 const L2_BLOCK_SIZE_EXP: usize = 9;
 
+/// The mask covering the size of an L2 index entry (12 bits)
 const L2_INDEX_MASK: u128 = (1 << 12) - 1;
 
 // This requires this computer's word size to be 64 bits
 static_assertions::assert_eq_size!(usize, u64);
 
+/// An implementation of the rank/select data structure described by Florian Kurpicz in his paper
+/// *Engineering Compact Data Structures for Rank and Select Queries on Bit Vectors*.
+/// The paper can be found [here](https://arxiv.org/abs/2206.01149).
+///
+/// This data structure should work well in most cases with a low memory overhead over the
+/// bitvector (less than 4%). 
 pub struct FlatPopcount<'a> {
     backing: &'a BitVec,
     l1_index: Vec<u128>,
 }
 
 impl<'a> FlatPopcount<'a> {
+    /// Creates a new rank datastructure from a bit vector.
+    ///
+    /// # Arguments
+    ///
+    /// * `backing` - The backing bitvector
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use succinct_neo::{
+    ///     bit_vec::BitVec,
+    ///     rank_select::{FlatPopcount, RankSupport}
+    /// };
+    ///
+    /// let mut bv = BitVec::new(64);
+    ///
+    /// bv.flip(10);
+    /// bv.flip(15);
+    /// bv.flip(20);
+    ///
+    /// let rank_ds = FlatPopcount::new(&bv);
+    /// assert_eq!(2, rank_ds.rank::<true>(17));
+    /// assert_eq!(12, rank_ds.rank::<false>(13));
+    /// ```
     pub fn new(backing: &'a BitVec) -> Self {
         let n = backing.len();
         let mut temp = Self {
             backing,
             l1_index: Vec::with_capacity((n as f64 / L1_BLOCK_SIZE as f64).ceil() as usize + 1),
         };
-        temp.build_l1();
+        temp.build_indices();
         temp
     }
 
-    fn build_l1(&mut self) {
+    /// Builds the required backing index data structure.
+    fn build_indices(&mut self) {
         let mut num_ones = 0;
         let mut ones_in_l1 = 0;
         let raw_bv = self.backing.raw();
@@ -56,25 +91,51 @@ impl<'a> FlatPopcount<'a> {
         self.l1_index.push(current_l1);
     }
 
+    /// Gets the number of bits in the underlying bit vector.
+    ///
+    /// This is *not* the number of ones in the bit vector.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use succinct_neo::{
+    ///     bit_vec::BitVec,
+    ///     rank_select::{FlatPopcount, RankSupport}
+    /// };
+    ///
+    /// let bv = BitVec::new(64);
+    /// let rank_ds = FlatPopcount::new(&bv);
+    /// assert_eq!(bv.len(), rank_ds.len());
+    /// ```
     #[inline]
     pub fn len(&self) -> usize {
         self.backing.len()
     }
 
+    /// Returns `true`, if the backing bit vector is empty.
+    ///
+    /// That is, this returns `true` of there is no space for any bits in the underlying bitvector.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use succinct_neo::{
+    ///     bit_vec::BitVec,
+    ///     rank_select::{FlatPopcount, RankSupport}
+    /// };
+    ///
+    /// let bv = BitVec::new(64);
+    /// let rank_ds = FlatPopcount::new(&bv);
+    /// assert!(!rank_ds.is_empty());
+    ///
+    /// let bv = BitVec::new(0);
+    /// let rank_ds = FlatPopcount::new(&bv);
+    /// assert!(rank_ds.is_empty());
+    /// ```
     #[must_use]
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
-    }
-
-    #[inline]
-    pub fn l1(&self, index: usize) -> usize {
-        (&self.l1_index[index] >> 84) as usize
-    }
-
-    #[inline]
-    pub fn l2(&self, l1_index: usize, l2_index: usize) -> usize {
-        let offset = 12 * (6 - l2_index);
-        ((self.l1_index[l1_index] >> offset) & L2_INDEX_MASK) as usize
     }
 
     /// Calculates the number of ones up to and not including the given l2 block.
@@ -137,8 +198,19 @@ impl RankSupport for FlatPopcount<'_> {
 #[cfg(test)]
 mod test {
     use crate::{bit_vec::BitVec, rank_select::traits::RankSupport};
+    use super::{FlatPopcount, L2_INDEX_MASK};
 
-    use super::FlatPopcount;
+    #[inline]
+    fn l1(pop: &FlatPopcount, index: usize) -> usize {
+        (&pop.l1_index[index] >> 84) as usize
+    }
+
+    #[inline]
+    fn l2(pop: &FlatPopcount, l1_index: usize, l2_index: usize) -> usize {
+        let offset = 12 * (6 - l2_index);
+        ((pop.l1_index[l1_index] >> offset) & L2_INDEX_MASK) as usize
+    }
+
 
     #[test]
     fn new_test() {
@@ -153,12 +225,12 @@ mod test {
         assert_eq!(bv.len(), pop.len(), "length of rank ds not equal to length of bit vec");
         assert!(!pop.is_empty(), "rank ds empty despite not being empty");
 
-        assert_eq!(0, pop.l1(0));
-        assert_eq!(2048, pop.l1(1));
+        assert_eq!(0, l1(&pop, 0));
+        assert_eq!(2048, l1(&pop, 1));
 
         for i1 in 0..2 {
             for i2 in 0..7 {
-                assert_eq!(256 * (i2 + 1), pop.l2(i1, i2));
+                assert_eq!(256 * (i2 + 1), l2(&pop, i1, i2));
             }
         }
     }
