@@ -77,6 +77,10 @@ impl BitVec {
             size,
         }
     }
+
+    pub fn raw(&self) -> &[usize] {
+        self.data.backing()
+    }
 }
 
 impl BitModify for BitVec {
