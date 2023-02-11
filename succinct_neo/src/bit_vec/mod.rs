@@ -3,7 +3,7 @@ use std::ops::{Deref, DerefMut};
 
 use itertools::Itertools;
 
-use crate::bit_vec::slice::BitSlice;
+pub use crate::bit_vec::slice::BitSlice;
 pub use traits::*;
 
 use self::slice::Iter;

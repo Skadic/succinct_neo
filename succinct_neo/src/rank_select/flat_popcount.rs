@@ -77,6 +77,13 @@ impl<'a> FlatPopcount<'a> {
         ((self.l1_index[l1_index] >> offset) & L2_INDEX_MASK) as usize
     }
 
+    /// Calculates the number of ones up to and not including the given l2 block.
+    ///
+    /// # Arguments
+    ///
+    /// * `l1_index` - The index of the L1 Block
+    /// * `l2_index` - The index of the L2 Block inside of the L1 Block (valid range is 0-7
+    /// inclusively)
     #[inline]
     fn rough_rank_1(&self, l1_index: usize, l2_index: usize) -> usize {
         (if l2_index == 0 {
