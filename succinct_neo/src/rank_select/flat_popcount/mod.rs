@@ -16,6 +16,8 @@ const L2_INDEX_MASK: u128 = (1 << 12) - 1;
 // This requires this computer's word size to be 64 bits
 static_assertions::assert_eq_size!(usize, u64);
 
+pub mod strats;
+
 /// An implementation of the rank/select data structure described by Florian Kurpicz in his paper
 /// *Engineering Compact Data Structures for Rank and Select Queries on Bit Vectors*.
 /// The paper can be found [here](https://arxiv.org/abs/2206.01149).
