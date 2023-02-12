@@ -2,56 +2,70 @@ use super::{BitGet, BitModify};
 
 use super::{WORD_EXP, WORD_MASK};
 
-impl BitGet for usize {
-    #[inline]
-    unsafe fn get_bit_unchecked(&self, index: usize) -> bool {
-        self & (1 << index) > 0
-    }
+macro_rules! primitive_bit_ops {
+    {$tp:ty} => {
+        impl BitGet for $tp {
+            #[inline]
+            unsafe fn get_bit_unchecked(&self, index: usize) -> bool {
+                self & (1 << index) > 0
+            }
 
-    #[inline]
-    fn get_bit(&self, index: usize) -> bool {
-        if index >= std::mem::size_of::<Self>() * 8 {
-            panic!("index is {index} but length is {}", std::mem::size_of::<Self>() * 8)
+            #[inline]
+            fn get_bit(&self, index: usize) -> bool {
+                if index >= std::mem::size_of::<Self>() * 8 {
+                    panic!("index is {index} but length is {}", std::mem::size_of::<Self>() * 8)
+                }
+
+                // SAFETY: We checked the index is in bounds
+                unsafe { self.get_bit_unchecked(index) }
+            }
         }
 
-        // SAFETY: We checked the index is in bounds
-        unsafe { self.get_bit_unchecked(index) }
+        impl BitModify for $tp {
+            #[inline]
+            unsafe fn set_bit_unchecked(&mut self, index: usize, value: bool) {
+                if value {
+                    *self |= 1 << index
+                } else {
+                    *self &= !(1 << index)
+                }
+            }
+
+            #[inline]
+            fn set_bit(&mut self, index: usize, value: bool) {
+                if index >= std::mem::size_of::<Self>() * 8 {
+                    panic!("index is {index} but length is {}", std::mem::size_of::<Self>() * 8)
+                }
+                // SAFETY: We checked the index is in bounds
+                unsafe { self.set_bit_unchecked(index, value) }
+            }
+
+            #[inline]
+            unsafe fn flip_bit_unchecked(&mut self, index: usize) {
+                *self ^= 1 << index
+            }
+
+            #[inline]
+            fn flip_bit(&mut self, index: usize) {
+                if index >= std::mem::size_of::<Self>() * 8 {
+                    panic!("index is {index} but length is {}", std::mem::size_of::<Self>() * 8)
+                }
+                // SAFETY: We checked the index is in bounds
+                unsafe { self.flip_bit_unchecked(index) }
+            }
+        }
+    };
+    {$tp:ty, $($other:ty),+} => {
+        primitive_bit_ops!{$tp}
+        primitive_bit_ops!{$($other),+}
     }
 }
 
-impl BitModify for usize {
-    #[inline]
-    unsafe fn set_bit_unchecked(&mut self, index: usize, value: bool) {
-        if value {
-            *self |= 1 << index
-        } else {
-            *self &= !(1 << index)
-        }
-    }
-
-    #[inline]
-    fn set_bit(&mut self, index: usize, value: bool) {
-        if index >= std::mem::size_of::<Self>() * 8 {
-            panic!("index is {index} but length is {}", std::mem::size_of::<Self>() * 8)
-        }
-        // SAFETY: We checked the index is in bounds
-        unsafe { self.set_bit_unchecked(index, value) }
-    }
-
-    #[inline]
-    unsafe fn flip_bit_unchecked(&mut self, index: usize) {
-        *self ^= 1 << index
-    }
-
-    #[inline]
-    fn flip_bit(&mut self, index: usize) {
-        if index >= std::mem::size_of::<Self>() * 8 {
-            panic!("index is {index} but length is {}", std::mem::size_of::<Self>() * 8)
-        }
-        // SAFETY: We checked the index is in bounds
-        unsafe { self.flip_bit_unchecked(index) }
-    }
+primitive_bit_ops!{
+    u8, u16, u32, u64
 }
+
+primitive_bit_ops!{ usize }
 
 impl BitGet for [usize] {
     #[inline]
@@ -98,5 +112,70 @@ impl BitModify for [usize] {
             panic!("index is {index} but length is {}", self.len() << WORD_EXP)
         }
         unsafe { self.flip_bit_unchecked(index) }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::bit_vec::{BitGet, BitModify};
+
+    macro_rules! test_primitive {
+        {$tp:ty} => {
+            paste::paste! {
+                #[test]
+                pub fn [<$tp _set_get_bit_test>]() {
+                    let mut n = 0 as $tp;
+                    for i in 0..std::mem::size_of::<$tp>() * 8 {
+                        n.set_bit(i, i % 2 == 0);
+                    }
+                    for i in 0..std::mem::size_of::<$tp>() * 8 {
+                        assert_eq!(i % 2 == 0, n.get_bit(i))
+                    }
+                }
+
+                #[test]
+                #[should_panic]
+                pub fn [<$tp _get_bit_out_of_bounds_test>]() {
+                    let n = 0 as $tp;
+                    n.get_bit(std::mem::size_of::<$tp>() * 8);
+                }
+
+                #[test]
+                #[should_panic]
+                pub fn [<$tp _set_bit_out_of_bounds_test>]() {
+                    let mut n = 0 as $tp;
+                    n.set_bit(std::mem::size_of::<$tp>() * 8, true);
+                }
+
+                #[test]
+                pub fn [<$tp _flip_bit_test>]() {
+                    let mut n = 0 as $tp;
+                    for i in 0..std::mem::size_of::<$tp>() * 8 {
+                        n.set_bit(i, i % 2 == 0);
+                    }
+                    for i in 0..std::mem::size_of::<$tp>() * 8 {
+                        n.flip_bit(i);
+                    }
+                    for i in 0..std::mem::size_of::<$tp>() * 8 {
+                        assert_eq!(i % 2 == 1, n.get_bit(i), "index {i}")
+                    }
+                }
+
+                #[test]
+                #[should_panic]
+                pub fn [<$tp _flip_bit_out_of_bounds_test>]() {
+                    let mut n = 0 as $tp;
+                    n.flip_bit(std::mem::size_of::<$tp>() * 8);
+                }
+            }
+        };
+        {$tp:ty, $($other:ty),+} => {
+            test_primitive!{$tp}
+            test_primitive!{$($other),+}
+        }
+    }
+
+    test_primitive!{
+        u8, u16, u32, u64, usize
     }
 }

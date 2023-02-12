@@ -94,7 +94,7 @@ impl BitModify for BitVec {
         if index >= self.len() {
             panic!("index is {index} but length is {}", self.size)
         }
-        unsafe { self.set_unchecked(index, value) }
+        unsafe { self.set_bit_unchecked(index, value) }
     }
 
     #[inline]
@@ -107,7 +107,7 @@ impl BitModify for BitVec {
         if index >= self.len() {
             panic!("index is {index} but length is {}", self.size)
         }
-        unsafe { self.flip_unchecked(index) }
+        unsafe { self.flip_bit_unchecked(index) }
     }
 }
 
@@ -167,6 +167,7 @@ impl AsMut<BitSlice<Box<[usize]>>> for BitVec {
 
 #[cfg(test)]
 mod test {
+    use crate::bit_vec::BitGet;
     use super::traits::BitModify;
 
     use super::BitVec;
@@ -179,6 +180,9 @@ mod test {
         let bv = BitVec::new(0);
         assert_eq!(0, bv.len(), "length incorrect");
         assert!(bv.is_empty(), "bv not empty despite length being 0");
+        let mut bv = BitVec::new(80);
+        bv.set(0, true);
+        println!("{bv:?}")
     }
 
     #[test]
@@ -248,5 +252,26 @@ mod test {
     fn flip_out_of_bounds_test() {
         let mut bv = BitVec::new(20);
         bv.flip(20);
+    }
+
+    #[test]
+    #[should_panic]
+    fn get_bit_out_of_bounds_mut_test() {
+        let bv = BitVec::new(20);
+        bv.get_bit(20);
+    }
+
+    #[test]
+    #[should_panic]
+    fn set_bit_out_of_bounds_test() {
+        let mut bv = BitVec::new(20);
+        bv.set_bit(20, true);
+    }
+
+    #[test]
+    #[should_panic]
+    fn flip_bit_out_of_bounds_test() {
+        let mut bv = BitVec::new(20);
+        bv.flip_bit(20);
     }
 }
