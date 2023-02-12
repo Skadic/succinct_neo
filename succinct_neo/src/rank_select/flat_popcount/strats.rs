@@ -1,5 +1,12 @@
 use super::L2_INDEX_MASK;
 
+#[cfg(all(
+target_arch = "x86_64",
+target_feature = "sse2",
+target_feature = "ssse3",
+target_feature = "sse4.1"
+))]
+pub use simd::SimdSearch;
 
 pub trait SelectStrategy {
     fn find_l2(entry: u128, rank: usize) -> (usize, usize);
@@ -89,7 +96,9 @@ mod simd {
     pub struct SimdSearch;
 
     impl SelectStrategy for SimdSearch {
-        fn find_l2(entry: u128, rank: usize) -> (usize, usize) {
+        fn find_l2(mut entry: u128, rank: usize) -> (usize, usize) {
+            // We zero the L1 Index data in the entry
+            unsafe { *(&mut entry as *mut u128 as *mut u64).offset(1) &= (1 << 20) - 1; }
             let rank = rank as i16;
             let l2_index = unsafe {
                 // Put the values into a wide 128 bit register
@@ -179,6 +188,8 @@ mod test {
     #[rustfmt::skip]
     fn strat_test_1_increment<Strat: SelectStrategy>() {
         let mut entry = 0u128;
+        // Add random data to the l1 field to ensure this doesn't mess with anything
+        entry |= 123456789 << 84;
         entry |= 1;
         entry <<= 12;
         entry |= 2;
@@ -203,6 +214,8 @@ mod test {
     #[rustfmt::skip]
     fn strat_test_generic<Strat: SelectStrategy>() {
         let mut entry = 0u128;
+        // Add random data to the l1 field to ensure this doesn't mess with anything
+        entry |= 123456789 << 84;
         entry |= 10;
         entry <<= 12;
         entry |= 25;
@@ -236,6 +249,8 @@ mod test {
     #[rustfmt::skip]
     fn strat_test_equal_ranks<Strat: SelectStrategy>() {
         let mut entry = 0u128;
+        // Add random data to the l1 field to ensure this doesn't mess with anything
+        entry |= 123456789 << 84;
         entry |= 10;
         entry <<= 12;
         entry |= 25;

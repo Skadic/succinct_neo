@@ -1,4 +1,5 @@
-use crate::bit_vec::BitVec;
+use std::marker::PhantomData;
+use crate::bit_vec::{BitGet, BitVec};
 
 use super::traits::RankSupport;
 
@@ -16,7 +17,11 @@ const L2_INDEX_MASK: u128 = (1 << 12) - 1;
 // This requires this computer's word size to be 64 bits
 static_assertions::assert_eq_size!(usize, u64);
 
-pub mod strats;
+mod strats;
+
+pub use strats::*;
+use crate::int_vec::{IntAccess, IntVec};
+use crate::rank_select::traits::SelectSupport;
 
 /// An implementation of the rank/select data structure described by Florian Kurpicz in his paper
 /// *Engineering Compact Data Structures for Rank and Select Queries on Bit Vectors*.
@@ -24,13 +29,16 @@ pub mod strats;
 ///
 /// This data structure should work well in most cases with a low memory overhead over the
 /// bitvector (less than 4%). 
-pub struct FlatPopcount<'a> {
+pub struct FlatPopcount<'a, Strat = LinearSearch> {
     backing: &'a BitVec,
     l1_index: Vec<u128>,
+    sampled_ones: IntVec,
+    number_of_ones: usize,
+    _mark: PhantomData<Strat>,
 }
 
-impl<'a> FlatPopcount<'a> {
-    /// Creates a new rank datastructure from a bit vector.
+impl<'a, T> FlatPopcount<'a, T> {
+    /// Creates a new rank data structure from a bit vector.
     ///
     /// # Arguments
     ///
@@ -50,17 +58,32 @@ impl<'a> FlatPopcount<'a> {
     /// bv.flip(15);
     /// bv.flip(20);
     ///
-    /// let rank_ds = FlatPopcount::new(&bv);
+    /// let rank_ds = FlatPopcount::<()>::new(&bv);
     /// assert_eq!(2, rank_ds.rank::<true>(17));
     /// assert_eq!(12, rank_ds.rank::<false>(13));
     /// ```
     pub fn new(backing: &'a BitVec) -> Self {
+        if backing.len() == 0 {
+            return Self {
+                backing,
+                l1_index: Vec::with_capacity(0),
+                sampled_ones: IntVec::new(1),
+                _mark: Default::default(),
+                number_of_ones: 0
+            }
+        }
+
         let n = backing.len();
+        let log_n = n.ilog2() as usize + 1;
         let mut temp = Self {
             backing,
             l1_index: Vec::with_capacity((n as f64 / L1_BLOCK_SIZE as f64).ceil() as usize + 1),
+            sampled_ones: IntVec::new(log_n),
+            _mark: Default::default(),
+            number_of_ones: 0
         };
         temp.build_indices();
+        temp.sample_ones();
         temp
     }
 
@@ -71,7 +94,8 @@ impl<'a> FlatPopcount<'a> {
         let raw_bv = self.backing.raw();
 
         let mut current_l1 = 0u128;
-        for (i, l2_block) in raw_bv.chunks(8).enumerate() {
+        let mut i = 0;
+        for l2_block in raw_bv.chunks(8) {
             let offset = i & 0b0111;
             // In this case this is the last L2 block of this L1 block and we don't store its
             // popcount explicitly
@@ -84,13 +108,34 @@ impl<'a> FlatPopcount<'a> {
                     + l2_block.iter().copied().map(usize::count_ones).sum::<u32>() as usize;
                 current_l1 = (num_ones as u128) << 84;
                 ones_in_l1 = 0;
+                i += 1;
                 continue;
             }
             // Add the L2 index entry
             ones_in_l1 += l2_block.iter().copied().map(usize::count_ones).sum::<u32>() as usize;
             current_l1 |= (ones_in_l1 as u128 & L2_INDEX_MASK) << (12 * (6 - offset));
+            i += 1;
+        }
+        // Fill the unused L2 blocks in the last L1 Block with all ones
+        while i & 0b0111 != 7 {
+            current_l1 |= L2_INDEX_MASK << (12 * (6 - (i & 0b0111)));
+            i += 1;
         }
         self.l1_index.push(current_l1);
+    }
+
+    /// Samples every 8192nd one and saves the l1 block it is in
+    fn sample_ones(&mut self) {
+        let mut count = -1isize;
+        for (i, value) in self.backing.iter().enumerate() {
+            if value {
+                count += 1;
+                if count & ((1 << 13) - 1) == 0 {
+                    self.sampled_ones.push(i as usize >> 13);
+                }
+            }
+        }
+        self.number_of_ones = (count + 1) as usize;
     }
 
     /// Gets the number of bits in the underlying bit vector.
@@ -106,7 +151,7 @@ impl<'a> FlatPopcount<'a> {
     /// };
     ///
     /// let bv = BitVec::new(64);
-    /// let rank_ds = FlatPopcount::new(&bv);
+    /// let rank_ds = FlatPopcount::<()>::new(&bv);
     /// assert_eq!(bv.len(), rank_ds.len());
     /// ```
     #[inline]
@@ -127,11 +172,11 @@ impl<'a> FlatPopcount<'a> {
     /// };
     ///
     /// let bv = BitVec::new(64);
-    /// let rank_ds = FlatPopcount::new(&bv);
+    /// let rank_ds = FlatPopcount::<()>::new(&bv);
     /// assert!(!rank_ds.is_empty());
     ///
     /// let bv = BitVec::new(0);
-    /// let rank_ds = FlatPopcount::new(&bv);
+    /// let rank_ds = FlatPopcount::<()>::new(&bv);
     /// assert!(rank_ds.is_empty());
     /// ```
     #[must_use]
@@ -161,9 +206,14 @@ impl<'a> FlatPopcount<'a> {
             l1 + l2
         }) as usize
     }
+
+    #[inline]
+    unsafe fn l1(&self, l1_index: usize) -> usize {
+        *((self.l1_index.get_unchecked(l1_index) as *const u128 as *const usize).offset(1)) >> 20
+    }
 }
 
-impl RankSupport for FlatPopcount<'_> {
+impl<T> RankSupport for FlatPopcount<'_, T> {
     fn rank<const TARGET: bool>(&self, index: usize) -> usize {
         let l1_index = index >> L1_BLOCK_SIZE_EXP;
         let l2_index = (index >> L2_BLOCK_SIZE_EXP) & 0b0111;
@@ -197,9 +247,66 @@ impl RankSupport for FlatPopcount<'_> {
     }
 }
 
+impl<Strat: SelectStrategy> SelectSupport<true> for FlatPopcount<'_, Strat> {
+    fn select(&self, mut rank: usize) -> Option<usize> {
+        if rank > self.number_of_ones {
+            return None;
+        }
+        let mut l1_index = self.sampled_ones.get(rank >> 13);
+        // SAFETY: The data in sampled_ones should be correct, so this must work too
+        let mut l1 = unsafe { self.l1(l1_index) };
+        // Find the l1 block that contains the 1 we need
+        while l1 <= rank && l1_index < self.l1_index.len() {
+            l1_index += 1;
+            l1 = unsafe { self.l1(l1_index) };
+        }
+        l1_index -= 1;
+        rank -= unsafe { self.l1(l1_index) };
+
+        // Find the correct l2 block inside the l1 block
+        let block = unsafe { *self.l1_index.get_unchecked(l1_index) };
+        let (l2_index, ones_in_l2) = Strat::find_l2(block, rank);
+        rank -= ones_in_l2;
+
+        // Find the correct word inside the l2 block
+        let mut current_index = (l1_index << 6) + (l2_index << 3);
+        let mut index_in_l2 = 0;
+        loop {
+            let num_ones = unsafe { self.backing.raw().get_unchecked(current_index).count_ones() as usize};
+            if num_ones <= rank {
+                rank -= num_ones;
+                current_index += 1;
+                index_in_l2 += 1;
+            } else {
+                break
+            }
+        }
+
+        // Find the correct 1 inside the word
+        let word = unsafe { *self.backing.raw().get_unchecked(current_index) };
+        let mut index_in_word = 0;
+        loop {
+            let bit = unsafe { word.get_bit_unchecked(index_in_word) };
+            if rank == 0 && bit {
+                break;
+            }
+            // SAFETY: indices are <= 64
+            if bit {
+                rank -= 1;
+            }
+            index_in_word += 1;
+        };
+
+        Some((l1_index << L1_BLOCK_SIZE_EXP) + (l2_index << L2_BLOCK_SIZE_EXP) + (index_in_l2 << 6) + index_in_word)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::{bit_vec::BitVec, rank_select::traits::RankSupport};
+    use crate::int_vec::IntAccess;
+    use crate::rank_select::flat_popcount::BinarySearch;
+    use crate::rank_select::traits::SelectSupport;
     use super::{FlatPopcount, L2_INDEX_MASK};
 
     #[inline]
@@ -216,10 +323,10 @@ mod test {
 
     #[test]
     fn new_test() {
-        let mut bv = BitVec::new(10000);
+        let mut bv = BitVec::new(50000);
 
-        for i in 0..10000 {
-            bv.set(i, i & 2 == 0)
+        for i in 0..bv.len() {
+            bv.set(i, i % 2 == 0)
         }
 
         let pop = FlatPopcount::new(&bv);
@@ -230,10 +337,14 @@ mod test {
         assert_eq!(0, l1(&pop, 0));
         assert_eq!(2048, l1(&pop, 1));
 
-        for i1 in 0..2 {
+        for i1 in 0..bv.len() / 4096 {
             for i2 in 0..7 {
-                assert_eq!(256 * (i2 + 1), l2(&pop, i1, i2));
+                assert_eq!(256 * (i2 + 1), l2(&pop, i1, i2), "l2 entry {i2} in l1 entry {i1}");
             }
+        }
+
+        for i in 0..bv.len() / 16384 {
+            assert_eq!((i * 16384) / 8192, pop.sampled_ones.get(i), "sampled position for {i}'th one");
         }
     }
 
@@ -241,11 +352,11 @@ mod test {
     fn rank_test() {
         let mut bv = BitVec::new(10000);
 
-        for i in 0..10000 {
+        for i in 0..bv.len() {
             bv.set(i, i & 2 == 0)
         }
 
-        let pop = FlatPopcount::new(&bv);
+        let pop = FlatPopcount::<()>::new(&bv);
 
         let mut ones = 0;
         for i in 0..bv.len() {
@@ -254,4 +365,33 @@ mod test {
             ones += if bv.get(i) { 1 } else { 0 };
         }
     }
+
+    #[test]
+    fn select_test() {
+        let mut bv = BitVec::new(50000);
+
+        for i in 0..bv.len() {
+            bv.set(i, i % 2 == 0)
+        }
+
+        let pop = FlatPopcount::<BinarySearch>::new(&bv);
+        for i in 1..bv.len() / 2 {
+            assert_eq!(Some(2 * i), pop.select(i), "{i}th one should be at index {}", 2 * i);
+        }
+    }
+
+
+    #[test]
+    fn select_exceed_test() {
+        let mut bv = BitVec::new(50000);
+
+        for i in 0..bv.len() {
+            bv.set(i, i % 2 == 0)
+        }
+
+        let pop = FlatPopcount::<BinarySearch>::new(&bv);
+
+        assert_eq!(None, pop.select(100000));
+    }
+
 }

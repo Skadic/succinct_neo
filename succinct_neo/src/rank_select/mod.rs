@@ -1,4 +1,4 @@
-mod flat_popcount;
+pub mod flat_popcount;
 mod traits;
 
 pub use traits::RankSupport;

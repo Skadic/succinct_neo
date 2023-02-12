@@ -29,7 +29,7 @@ pub trait RankSupport {
     /// bv.flip(15);
     /// bv.flip(20);
     ///
-    /// let rank_ds = FlatPopcount::new(&bv);
+    /// let rank_ds = FlatPopcount::<()>::new(&bv);
     ///
     /// assert_eq!(0, rank_ds.rank::<true>(5));
     /// assert_eq!(0, rank_ds.rank::<true>(10));
@@ -67,7 +67,7 @@ pub trait RankSupport {
     /// bv.flip(15);
     /// bv.flip(20);
     ///
-    /// let rank_ds = FlatPopcount::new(&bv);
+    /// let rank_ds = FlatPopcount::<()>::new(&bv);
     /// 
     /// assert_eq!(0, rank_ds.rank_dyn(5, true));
     /// assert_eq!(0, rank_ds.rank_dyn(10, true));
@@ -86,4 +86,21 @@ pub trait RankSupport {
             self.rank::<false>(index)
         }
     }
+}
+
+pub trait SelectSupport<const TARGET: bool> {
+    /// Calculates the index of the nth time the given value shows up.
+    ///
+    /// If [`TARGET`] is `true`, this will search for the nth one, if it is `false`, this will
+    /// search for zeroes.
+    ///
+    /// # Arguments
+    ///
+    /// * `rank` - The rank of the zero/one to find.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// ```
+    fn select(&self, rank: usize) -> Option<usize>;
 }
