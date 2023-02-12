@@ -3,9 +3,8 @@ use std::ops::{Deref, DerefMut};
 
 use itertools::Itertools;
 
+pub use crate::bit_vec::slice::BitSlice;
 pub use traits::*;
-
-use crate::bit_vec::slice::BitSlice;
 
 use self::slice::Iter;
 
@@ -203,7 +202,7 @@ mod test {
     fn set_get_test() {
         let mut bv = BitVec::new(160);
         for i in (0..bv.len()).step_by(3) {
-            bv.set(i, true);
+            bv.set_bit(i, true);
         }
 
         for i in 0..bv.len() {

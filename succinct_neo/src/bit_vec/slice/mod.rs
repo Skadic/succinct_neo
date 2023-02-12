@@ -79,6 +79,7 @@ impl<Backing> BitSlice<Backing> {
         self.len() == 0
     }
 
+    /// Grants access to the backing type of this bit slice
     #[inline]
     pub fn backing(&self) -> &Backing {
         &self.backing
