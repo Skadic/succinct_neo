@@ -2,6 +2,7 @@
   "plugins": [
     "cargo-workspace"
   ],
+  "bootstrap-sha": "c0a6e89e1cc35b00e6dedc7c4691551e433392fe",
   "release-type": "rust",
   "bump-minor-pre-major": true,
   "bump-patch-for-minor-pre-major": false,
