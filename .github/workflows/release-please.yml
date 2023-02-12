@@ -1,12 +1,16 @@
+name: "Release Please"
+
 on:
   push:
-    branches:
-      - master
-
-name: release-please
+    branches: [ "master", "ci" ]
+  pull_request:
+    branches: [ "master", "ci" ]
+      
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     steps:
       - uses: google-github-actions/release-please-action@v3
         with:
