@@ -9,7 +9,7 @@
   "prerelease": true,
   "packages": {
     "succinct_neo": {
-      "changelog-path": "../CHANGELOG.md"
+      "changelog-path": "CHANGELOG.md"
     }
   },
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json"
