@@ -86,7 +86,7 @@ impl BitVec {
 impl BitModify for BitVec {
     #[inline]
     unsafe fn set_bit_unchecked(&mut self, index: usize, value: bool) {
-        self.data.set_unchecked(index, value)
+        self.data.set_bit_unchecked(index, value)
     }
 
     #[inline]
@@ -99,7 +99,7 @@ impl BitModify for BitVec {
 
     #[inline]
     unsafe fn flip_bit_unchecked(&mut self, index: usize) {
-        self.data.flip_unchecked(index)
+        self.data.flip_bit_unchecked(index)
     }
 
     #[inline]
@@ -159,6 +159,12 @@ impl AsRef<BitSlice<Box<[usize]>>> for BitVec {
     }
 }
 
+impl AsRef<[usize]> for BitVec {
+    fn as_ref(&self) -> &[usize] {
+        self.data.backing()
+    }
+}
+
 impl AsMut<BitSlice<Box<[usize]>>> for BitVec {
     fn as_mut(&mut self) -> &mut BitSlice<Box<[usize]>> {
         &mut self.data
@@ -168,9 +174,10 @@ impl AsMut<BitSlice<Box<[usize]>>> for BitVec {
 #[cfg(test)]
 mod test {
     use crate::bit_vec::BitGet;
-    use super::traits::BitModify;
+    use crate::bit_vec::slice::BitSlice;
 
     use super::BitVec;
+    use super::traits::BitModify;
 
     #[test]
     fn basics_test() {
@@ -180,8 +187,14 @@ mod test {
         let bv = BitVec::new(0);
         assert_eq!(0, bv.len(), "length incorrect");
         assert!(bv.is_empty(), "bv not empty despite length being 0");
+
         let mut bv = BitVec::new(80);
-        bv.set(0, true);
+        bv.set(10, true);
+
+        assert_eq!(bv.backing(), AsRef::<BitSlice<_>>::as_ref(&bv).backing());
+        assert_eq!(bv.raw(), AsRef::<[usize]>::as_ref(&bv));
+        assert_eq!(bv.backing(), bv.clone().as_mut().backing());
+
         println!("{bv:?}")
     }
 
@@ -198,6 +211,18 @@ mod test {
     }
 
     #[test]
+    fn set_get_bit_test() {
+        let mut bv = BitVec::new(160);
+        for i in (0..bv.len()).step_by(3) {
+            bv.set_bit(i, true);
+        }
+
+        for i in 0..bv.len() {
+            assert_eq!(i % 3 == 0, bv.get_bit(i));
+        }
+    }
+
+    #[test]
     fn flip_test() {
         let mut bv = BitVec::new(160);
         for i in (0..bv.len()).step_by(3) {
@@ -209,7 +234,23 @@ mod test {
         }
 
         for i in 0..bv.len() {
-            assert_eq!(i % 3 != 0, bv.get(i));
+            assert_eq!(i % 3 != 0, bv.get_bit(i));
+        }
+    }
+
+    #[test]
+    fn flip_bit_test() {
+        let mut bv = BitVec::new(160);
+        for i in (0..bv.len()).step_by(3) {
+            bv.set_bit(i, true);
+        }
+
+        for i in 0..bv.len() {
+            bv.flip_bit(i);
+        }
+
+        for i in 0..bv.len() {
+            assert_eq!(i % 3 != 0, bv.get_bit(i));
         }
     }
 
