@@ -185,6 +185,11 @@ impl<'a, T> FlatPopcount<'a, T> {
         self.len() == 0
     }
 
+    /// Returns the number of ones in the entire bitvector.
+    pub fn num_ones(&self) -> usize {
+        self.number_of_ones
+    }
+
     /// Calculates the number of ones up to and not including the given l2 block.
     ///
     /// # Arguments
