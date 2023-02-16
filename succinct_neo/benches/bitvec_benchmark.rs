@@ -26,7 +26,7 @@ fn bench_bv_ops(c: &mut Criterion) {
     let mut group = c.benchmark_group("bv_ops");
     group.sample_size(250);
 
-    group.bench_function("bv_get", |b| {
+    group.bench_function("get", |b| {
         b.iter_batched(
             || rng.gen_range(0..n),
             |i| {
@@ -36,7 +36,7 @@ fn bench_bv_ops(c: &mut Criterion) {
         )
     });
 
-    group.bench_function("bv_set", |b| {
+    group.bench_function("set", |b| {
         b.iter_batched(
             || (rng.gen_range(0..n), rng.gen_bool(0.5)),
             |(i, v)| {

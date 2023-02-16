@@ -91,7 +91,7 @@ impl IntVec {
     }
 
     #[inline]
-    fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.size
     }
 
