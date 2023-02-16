@@ -225,12 +225,14 @@ impl<'a, T> FlatPopcount<'a, T> {
     /// The l1 start index must be in range of the l1 index.
     unsafe fn find_l1(&self, l1_start_index: usize, rank: usize) -> usize {
         let n = self.l1_index.len();
+        let mut ptr = (self.l1_index.get_unchecked(l1_start_index) as *const u128 as *const usize).add(1);
         // Find the l1 block that contains the 1 we need
         for l1_index in l1_start_index..n {
-            let l1 = self.l1(l1_index);
+            let l1 = *ptr >> 20;
             if l1 > rank {
                 return l1_index - 1;
             }
+            ptr = ptr.add(2);
         }
         n - 1
     }
