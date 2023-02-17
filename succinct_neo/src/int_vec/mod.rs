@@ -1,10 +1,8 @@
-use core::panic;
-
+use itertools::Itertools;
 pub use traits::IntAccess;
 
 mod traits;
 
-#[derive(Debug)]
 pub struct IntVec {
     data: Vec<usize>,
     width: usize,
@@ -101,15 +99,21 @@ impl IntVec {
     }
 }
 
-impl IntAccess for IntVec {
-    fn get(&self, index: usize) -> usize {
-        if index >= self.len() {
-            panic!("length is {} but index is {index}", self.len())
-        }
-
-        unsafe { self.get_unchecked(index) }
+#[allow(unstable_name_collisions)]
+impl std::fmt::Debug for IntVec {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{{")
+            .and_then(|_| {
+                self.iter()
+                    .map(|i| i.to_string())
+                    .intersperse(", ".to_string())
+                    .try_for_each(|s| write!(f, "{s}"))
+            })
+            .and_then(|_| write!(f, "}}"))
     }
+}
 
+impl IntAccess for IntVec {
     unsafe fn get_unchecked(&self, index: usize) -> usize {
         let index_block = (index * self.width) / Self::block_width();
         let index_offset = (index * self.width) % Self::block_width();
@@ -128,14 +132,12 @@ impl IntAccess for IntVec {
         (self.data[index_block] >> index_offset) & mask
     }
 
-    fn set(&mut self, index: usize, value: usize) {
+    fn get(&self, index: usize) -> usize {
         if index >= self.len() {
             panic!("length is {} but index is {index}", self.len())
         }
-        if value >= (1 << self.width) {
-            panic!("value {value} too large for {}-bit integer", self.width)
-        }
-        unsafe { self.set_unchecked(index, value) }
+
+        unsafe { self.get_unchecked(index) }
     }
 
     unsafe fn set_unchecked(&mut self, index: usize, value: usize) {
@@ -160,6 +162,16 @@ impl IntAccess for IntVec {
 
         self.data[index_block] &= !(mask << index_offset);
         self.data[index_block] |= value << index_offset;
+    }
+
+    fn set(&mut self, index: usize, value: usize) {
+        if index >= self.len() {
+            panic!("length is {} but index is {index}", self.len())
+        }
+        if value >= (1 << self.width) {
+            panic!("value {value} too large for {}-bit integer", self.width)
+        }
+        unsafe { self.set_unchecked(index, value) }
     }
 }
 
