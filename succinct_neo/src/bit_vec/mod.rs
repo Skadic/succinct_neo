@@ -48,7 +48,7 @@ const WORD_MASK: usize = (1 << WORD_EXP) - 1;
 ///
 #[derive(Clone)]
 pub struct BitVec {
-    data: BitSlice<Box<[usize]>>,
+    data: BitSlice<Vec<usize>>,
     size: usize,
 }
 
@@ -71,9 +71,8 @@ impl BitVec {
     /// ```
     pub fn new(size: usize) -> Self {
         let v = vec![0usize; (size as f64 / WORD_SIZE as f64).ceil() as usize];
-        let b = v.into_boxed_slice();
         Self {
-            data: BitSlice::new(b, 0, size),
+            data: BitSlice::new(v, 0, size),
             size,
         }
     }
@@ -114,7 +113,7 @@ impl BitModify for BitVec {
 impl<'a> IntoIterator for &'a BitVec {
     type Item = bool;
 
-    type IntoIter = Iter<&'a Box<[usize]>>;
+    type IntoIter = Iter<&'a Vec<usize>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.data.iter()
@@ -140,7 +139,7 @@ impl Debug for BitVec {
 }
 
 impl Deref for BitVec {
-    type Target = BitSlice<Box<[usize]>>;
+    type Target = BitSlice<Vec<usize>>;
 
     fn deref(&self) -> &Self::Target {
         &self.data
@@ -153,8 +152,8 @@ impl DerefMut for BitVec {
     }
 }
 
-impl AsRef<BitSlice<Box<[usize]>>> for BitVec {
-    fn as_ref(&self) -> &BitSlice<Box<[usize]>> {
+impl AsRef<BitSlice<Vec<usize>>> for BitVec {
+    fn as_ref(&self) -> &BitSlice<Vec<usize>> {
         &self.data
     }
 }
@@ -165,8 +164,8 @@ impl AsRef<[usize]> for BitVec {
     }
 }
 
-impl AsMut<BitSlice<Box<[usize]>>> for BitVec {
-    fn as_mut(&mut self) -> &mut BitSlice<Box<[usize]>> {
+impl AsMut<BitSlice<Vec<usize>>> for BitVec {
+    fn as_mut(&mut self) -> &mut BitSlice<Vec<usize>> {
         &mut self.data
     }
 }
@@ -275,42 +274,42 @@ mod test {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "index is 20 but length is 20")]
     fn get_out_of_bounds_mut_test() {
         let bv = BitVec::new(20);
         bv.get(20);
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "index is 20 but length is 20")]
     fn set_out_of_bounds_test() {
         let mut bv = BitVec::new(20);
         bv.set(20, true);
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "index is 20 but length is 20")]
     fn flip_out_of_bounds_test() {
         let mut bv = BitVec::new(20);
         bv.flip(20);
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "index is 20 but length is 20")]
     fn get_bit_out_of_bounds_mut_test() {
         let bv = BitVec::new(20);
         bv.get_bit(20);
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "index is 20 but length is 20")]
     fn set_bit_out_of_bounds_test() {
         let mut bv = BitVec::new(20);
         bv.set_bit(20, true);
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "index is 20 but length is 20")]
     fn flip_bit_out_of_bounds_test() {
         let mut bv = BitVec::new(20);
         bv.flip_bit(20);

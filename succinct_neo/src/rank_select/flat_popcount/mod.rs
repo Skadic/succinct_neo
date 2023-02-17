@@ -5,14 +5,16 @@ use super::traits::RankSupport;
 
 /// The number of bits in an L1 block
 const L1_BLOCK_SIZE: usize = 4096;
+/// The number of bits in an L2 block
+const L2_BLOCK_SIZE: usize = 512;
 
 /// $2^12 = 4096$, the L1 block size
-const L1_BLOCK_SIZE_EXP: usize = 12;
+const L1_BLOCK_SIZE_EXP: usize = L1_BLOCK_SIZE.ilog2() as usize;
 /// $2^12 = 512$, the L2 block size
-const L2_BLOCK_SIZE_EXP: usize = 9;
+const L2_BLOCK_SIZE_EXP: usize = L2_BLOCK_SIZE.ilog2() as usize;
 
 /// The mask covering the size of an L2 index entry (12 bits)
-const L2_INDEX_MASK: u128 = (1 << 12) - 1;
+const L2_INDEX_MASK: u128 = (1 << L1_BLOCK_SIZE_EXP) - 1;
 
 // This requires this computer's word size to be 64 bits
 static_assertions::assert_eq_size!(usize, u64);
@@ -131,7 +133,7 @@ impl<'a, T> FlatPopcount<'a, T> {
             if value {
                 count += 1;
                 if count & ((1 << 13) - 1) == 0 {
-                    self.sampled_ones.push(i as usize >> 13);
+                    self.sampled_ones.push(i >> 13);
                 }
             }
         }
@@ -258,11 +260,14 @@ impl<T> RankSupport for FlatPopcount<'_, T> {
             ones += unsafe { raw_backing.get_unchecked(word_start + i).count_ones() as usize };
         }
 
-        // Add the rest bits
-        unsafe {
-            ones += (raw_backing.get_unchecked(word_start + full_remaining_words)
-                & ((1 << rest_bits) - 1))
-                .count_ones() as usize
+        if rest_bits > 0 {
+            // Add the rest bits
+            unsafe {
+                const WORD_SIZE: usize = std::mem::size_of::<usize>() * 8;
+                let word = *raw_backing.get_unchecked(word_start + full_remaining_words);
+                let mask = ((1usize << rest_bits) - 1) << (WORD_SIZE - rest_bits);
+                ones += (word & mask).count_ones() as usize
+            }
         }
 
         if TARGET {
