@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.1.0 (2023-02-13)
+
+
+### Features
+
+* **rs:** add select strategies for select on flatpopcount ([71cfe0f](https://github.com/Skadic/succinct_neo/commit/71cfe0fc9ac90babb4738e1c995a374b1b2ffb67))
+* **rs:** add select strategies for select on flatpopcount ([7a7c366](https://github.com/Skadic/succinct_neo/commit/7a7c3668b804e818aabf721f4ac792eb8159ad3a))
+* **rs:** flat popcount rank ([3a0aa52](https://github.com/Skadic/succinct_neo/commit/3a0aa5270adb3cea3205dfa11ed51ebedd2f8f21))
+* **rs:** flat popcount rank ([69c827f](https://github.com/Skadic/succinct_neo/commit/69c827f597ee801266c3c64359042b1cc355bc53))
+* **rs:** select support for flatpopcount ([1d38aa9](https://github.com/Skadic/succinct_neo/commit/1d38aa9c32727763312b070171a77c856cb4b604))
+
+
+### Bug Fixes
+
+* **bv:** missing raw function ([8fec22f](https://github.com/Skadic/succinct_neo/commit/8fec22fb7ae7e505468f2e0ce3fc7a19f4f8e433))
+
 ## 0.1.0 (2023-02-12)
 
 
