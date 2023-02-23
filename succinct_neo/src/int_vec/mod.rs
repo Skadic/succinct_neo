@@ -1,5 +1,3 @@
-use core::panic;
-
 pub use traits::IntAccess;
 
 mod traits;
@@ -21,7 +19,7 @@ impl IntVec {
     #[inline]
     pub fn with_capacity(width: usize, capacity: usize) -> Self {
         let block_size = Self::block_width();
-        let num_blocks = (capacity * width) / block_size;
+        let num_blocks = ((capacity as f64 * width as f64) / block_size as f64).ceil() as usize;
 
         let mut temp = Self {
             data: Vec::with_capacity(num_blocks),
@@ -99,53 +97,62 @@ impl IntVec {
     pub fn iter(&self) -> Iter {
         Iter { i: 0, v: self }
     }
-}
 
-impl IntAccess for IntVec {
-    fn get(&self, index: usize) -> usize {
-        if index >= self.len() {
-            panic!("length is {} but index is {index}", self.len())
-        }
-
-        unsafe { self.get_unchecked(index) }
-    }
-
-    unsafe fn get_unchecked(&self, index: usize) -> usize {
-        let index_block = (index * self.width) / Self::block_width();
-        let index_offset = (index * self.width) % Self::block_width();
+    /// Gets an integer of the given bit width from an index.
+    ///
+    /// This gets the `width` bits at bit index `index width`.
+    ///
+    /// # Arguments
+    ///
+    /// * `index` - The index to read from.
+    /// * `width` - The bit width of integers.
+    ///
+    /// # Safety
+    ///
+    /// If `n` is the amount of bits stored in this vector, then for `index` and `width`
+    /// `(index + 1) * width < n` must hold.
+    ///
+    unsafe fn get_unchecked_with_width(&self, index: usize, width: usize) -> usize {
+        let index_block = (index * width) / Self::block_width();
+        let index_offset = (index * width) % Self::block_width();
 
         // If we're on the border between blocks
-        if index_offset + self.width >= Self::block_width() {
+        if index_offset + width >= Self::block_width() {
             let fitting_bits = Self::block_width() - index_offset;
-            let remaining_bits = self.width - fitting_bits;
+            let remaining_bits = width - fitting_bits;
             let lo = self.data[index_block] >> index_offset;
             let mask = (1 << remaining_bits) - 1;
             let hi = self.data[index_block + 1] & mask;
             return (hi << fitting_bits) | lo;
         }
 
-        let mask = (1 << self.width) - 1;
+        let mask = (1 << width) - 1;
         (self.data[index_block] >> index_offset) & mask
     }
 
-    fn set(&mut self, index: usize, value: usize) {
-        if index >= self.len() {
-            panic!("length is {} but index is {index}", self.len())
-        }
-        if value >= (1 << self.width) {
-            panic!("value {value} too large for {}-bit integer", self.width)
-        }
-        unsafe { self.set_unchecked(index, value) }
-    }
-
-    unsafe fn set_unchecked(&mut self, index: usize, value: usize) {
-        let mask = (1 << self.width) - 1;
+    /// Sets an integer of the given bit width at an index.
+    ///
+    /// This replaces the `width` bits at bit index `index width`.
+    ///
+    /// # Arguments
+    ///
+    /// * `index` - The index to write to.
+    /// * `width` - The bit width of integers.
+    ///
+    /// # Safety
+    ///
+    /// If `n` is the amount of bits stored in this vector, then for `index` and `width`
+    /// `(index + 1) * width < n` must hold.
+    /// In addition, `value` must fit into `width` bits.
+    ///
+    unsafe fn set_unchecked_with_width(&mut self, index: usize, value: usize, width: usize) {
+        let mask = (1 << width) - 1;
         let value = value & mask;
-        let index_block = (index * self.width) / Self::block_width();
-        let index_offset = (index * self.width) % Self::block_width();
+        let index_block = (index * width) / Self::block_width();
+        let index_offset = (index * width) % Self::block_width();
 
         // If we're on the border between blocks
-        if index_offset + self.width >= Self::block_width() {
+        if index_offset + width >= Self::block_width() {
             let fitting_bits = Self::block_width() - index_offset;
             unsafe {
                 let lower_block = self.data.get_unchecked_mut(index_block);
@@ -160,6 +167,55 @@ impl IntAccess for IntVec {
 
         self.data[index_block] &= !(mask << index_offset);
         self.data[index_block] |= value << index_offset;
+    }
+
+    pub fn bit_compress(&mut self) {
+        let Some(min_required_bits) = self.iter().reduce(|acc, v| { acc.max(v) }).map(|min| if min > 1 { (min - 1).ilog2() as usize + 1 } else { 1 }) else {
+            // No elements in here
+            return;
+        };
+
+        debug_assert!(min_required_bits <= self.width, "minimum required bits for the elements in this vector greater than previous word width");
+
+        let old_width = self.width;
+        self.width = min_required_bits;
+        self.capacity = self.data.capacity() * Self::block_width() / self.width;
+
+        for i in 0..self.len() {
+            // SAFETY: we know the amount of values in this bitvector, so there's no problem
+            unsafe {
+                let v = self.get_unchecked_with_width(i, old_width);
+                self.set_unchecked_with_width(i, v, self.width)
+            }
+        }
+    }
+}
+
+impl IntAccess for IntVec {
+    fn get(&self, index: usize) -> usize {
+        if index >= self.len() {
+            panic!("length is {} but index is {index}", self.len())
+        }
+
+        unsafe { self.get_unchecked(index) }
+    }
+
+    unsafe fn get_unchecked(&self, index: usize) -> usize {
+        self.get_unchecked_with_width(index, self.width)
+    }
+
+    fn set(&mut self, index: usize, value: usize) {
+        if index >= self.len() {
+            panic!("length is {} but index is {index}", self.len())
+        }
+        if value >= (1 << self.width) {
+            panic!("value {value} too large for {}-bit integer", self.width)
+        }
+        unsafe { self.set_unchecked(index, value) }
+    }
+
+    unsafe fn set_unchecked(&mut self, index: usize, value: usize) {
+        self.set_unchecked_with_width(index, value, self.width)
     }
 }
 
@@ -367,5 +423,33 @@ mod test {
     fn push_too_large_number_test() {
         let mut v = IntVec::new(7);
         v.push(100000000);
+    }
+
+    #[test]
+    fn bit_compress_test() {
+        let mut v = IntVec::with_capacity(9, 25);
+
+        // 25 * 9 = 225, which fits into 4 64-bit numbers (= 256 bits).
+        // So the capacity should be 256 / 9 = 28
+        assert_eq!(28, v.capacity, "incorrect capacity before compression");
+
+        // All these numbers should take 3 bits to save
+        for i in (0..50).step_by(2) {
+            v.push(i % 8)
+        }
+
+        v.bit_compress();
+
+
+        assert_eq!(3, v.width, "incorrect word width after compression");
+
+        // We were at 256 bits before with a bit size of 3.
+        // So 256 / 3 = 85
+        assert_eq!(85, v.capacity, "incorrect capacity after compression");
+        assert_eq!(25, v.len(), "incorrect length after compression");
+
+        for i in 0..v.len() {
+            assert_eq!((2 * i) % 8, v.get(i), "incorrect value at index {i}")
+        }
     }
 }
