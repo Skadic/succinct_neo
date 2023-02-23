@@ -11,6 +11,28 @@ pub struct IntVec {
 }
 
 impl IntVec {
+
+    /// Gets the number of required blocks of the given type to contain the specified number of
+    /// elements of a given width.
+    ///
+    /// # Arguments
+    ///
+    /// * `num_elements` - The number of elements intended to be saved.
+    /// * `bit_width` - The bit width of each element.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use succinct_neo::int_vec::IntVec;
+    ///
+    /// // 32 * 10 makes 320 bits, requiring 5 * 64bit blocks. 
+    /// assert_eq!(5, IntVec::num_required_blocks::<u64>(32, 10))
+    /// ```
+    #[inline]
+    pub fn num_required_blocks<T>(num_elements: usize, bit_width: usize) -> usize {
+        (num_elements as f64 * bit_width as f64 / (std::mem::size_of::<T>() as f64 * 8.0)).ceil() as usize
+    }
+
     #[inline]
     pub fn new(width: usize) -> Self {
         Self::with_capacity(width, 8)
@@ -188,6 +210,14 @@ impl IntVec {
                 self.set_unchecked_with_width(i, v, self.width)
             }
         }
+    }
+
+    pub fn shrink_to_fit(&mut self) {
+        let required_blocks = Self::num_required_blocks::<usize>(self.size, self.width);
+        self.data.truncate(required_blocks);
+        self.data.shrink_to_fit();
+        dbg!(required_blocks);
+        self.capacity = self.data.capacity() * Self::block_width() / self.width;
     }
 }
 
@@ -451,5 +481,25 @@ mod test {
         for i in 0..v.len() {
             assert_eq!((2 * i) % 8, v.get(i), "incorrect value at index {i}")
         }
+    }
+
+    #[test]
+    fn shrink_to_fit_test() {
+        let mut v = IntVec::with_capacity(9, 200);
+
+        // 200 * 9 = 1800, which fits into 29 64-bit numbers (= 1856 bits).
+        // So the capacity should be 1856 / 9 = 206
+        assert_eq!(206, v.capacity, "incorrect capacity before shrink");
+
+        for i in 0..50 {
+            v.push(i)
+        }
+
+        v.shrink_to_fit();
+
+        // We now have 50 elements in the vector, taking up 50 * 9 = 450 bits and fitting into
+        // 8 * 64 bit blocks = 512 bits. These fit 512 / 9 = 56 integers in total.
+        assert_eq!(56, v.capacity, "incorrect capacity after shrink");
+
     }
 }
