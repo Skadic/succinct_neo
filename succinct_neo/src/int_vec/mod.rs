@@ -1,4 +1,4 @@
-pub use traits::IntAccess;
+pub use self::traits::IntAccess;
 
 mod traits;
 
@@ -11,7 +11,6 @@ pub struct IntVec {
 }
 
 impl IntVec {
-
     /// Gets the number of required blocks of the given type to contain the specified number of
     /// elements of a given width.
     ///
@@ -25,12 +24,13 @@ impl IntVec {
     /// ```
     /// use succinct_neo::int_vec::IntVec;
     ///
-    /// // 32 * 10 makes 320 bits, requiring 5 * 64bit blocks. 
+    /// // 32 * 10 makes 320 bits, requiring 5 * 64bit blocks.
     /// assert_eq!(5, IntVec::num_required_blocks::<u64>(32, 10))
     /// ```
     #[inline]
     pub fn num_required_blocks<T>(num_elements: usize, bit_width: usize) -> usize {
-        (num_elements as f64 * bit_width as f64 / (std::mem::size_of::<T>() as f64 * 8.0)).ceil() as usize
+        (num_elements as f64 * bit_width as f64 / (std::mem::size_of::<T>() as f64 * 8.0)).ceil()
+            as usize
     }
 
     #[inline]
@@ -38,11 +38,49 @@ impl IntVec {
         self.capacity = self.data.capacity() * Self::block_width() / self.width;
     }
 
+    /// Creates an integer vector with a given bit width and a default capacity of 8.
+    ///
+    /// # Arguments
+    ///
+    /// * `width` - The bit width for each integer.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use succinct_neo::int_vec::IntVec;
+    ///
+    /// let v = IntVec::new(15);
+    ///
+    /// // 8 integers of size 15 require 120 bits this in turn requiring 2 * 64 blocks (= 128 bits).
+    /// // These can hold 8 integers exactly.
+    /// assert_eq!(8, v.capacity());
+    /// assert_eq!(15, v.bit_width());
+    /// ```
     #[inline]
     pub fn new(width: usize) -> Self {
         Self::with_capacity(width, 8)
     }
 
+    /// Creates an integer vector with a given bit width and capacity.
+    ///
+    /// # Arguments
+    ///
+    /// * `width` - The bit width for each integer.
+    /// * `capacity` - The number of integers which should fit into this vector without
+    /// reallocation.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use succinct_neo::int_vec::IntVec;
+    ///
+    /// let v = IntVec::with_capacity(15, 20);
+    ///
+    /// // 20 integers of size 15 require 300 bits this in turn requiring 5 * 64 blocks (= 320 bits).
+    /// // However, 320 bits can hold 21 integers of size 15
+    /// assert_eq!(21, v.capacity());
+    /// assert_eq!(15, v.bit_width());
+    /// ```
     #[inline]
     pub fn with_capacity(width: usize, capacity: usize) -> Self {
         let num_blocks = Self::num_required_blocks::<usize>(capacity, width);
@@ -63,6 +101,40 @@ impl IntVec {
         std::mem::size_of::<usize>() * 8
     }
 
+    /// Gets the number of bits each integer is saved with.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use succinct_neo::int_vec::IntVec;
+    ///
+    /// let v = IntVec::new(15);
+    ///
+    /// assert_eq!(15, v.bit_width());
+    /// ```
+    #[inline]
+    pub fn bit_width(&self) -> usize {
+        self.width
+    }
+
+    /// Returns the amount of integers would fit into the currently allocated memory.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use succinct_neo::int_vec::IntVec;
+    ///
+    /// let v = IntVec::with_capacity(5, 50);
+    ///
+    /// // 50 integers of 5 bit each, would fit into 250 bits in total which would make 4 * 64 bit
+    /// // blocks, making 256 bits in total. However, 256 bits fit 51 integers of size 5.
+    /// assert_eq!(51, v.capacity());
+    /// ```
+    #[inline]
+    pub fn capacity(&self) -> usize {
+        self.capacity
+    }
+
     #[inline]
     const fn mask(&self) -> usize {
         (1 << self.width) - 1
@@ -75,6 +147,26 @@ impl IntVec {
         (self.size * self.width) % Self::block_width()
     }
 
+    /// Adds an integer to the end of the vector.
+    ///
+    /// # Arguments
+    ///
+    /// * `v` - The value to insert.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use succinct_neo::int_vec::{IntVec, IntAccess};
+    /// 
+    /// let mut v = IntVec::new(10);
+    /// v.push(25);
+    /// v.push(8);
+    /// v.push(60);
+    ///
+    /// assert_eq!(25, v.get(0));
+    /// assert_eq!(8, v.get(1));
+    /// assert_eq!(60, v.get(2));
+    /// ```
     pub fn push(&mut self, v: usize) {
         if v >= (1 << self.width) {
             panic!("value too large for {}-bit integer", self.width)
@@ -104,21 +196,78 @@ impl IntVec {
         self.size += 1;
     }
 
+    /// Grants access to the underlying slice where the bits are saved.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use succinct_neo::int_vec::{IntVec, IntAccess};
+    /// 
+    /// let mut v = IntVec::new(32);
+    /// v.push(125);
+    /// v.push(1231);
+    ///
+    /// assert_eq!((1231 << 32) | 125, v.raw_data()[0]);
+    /// ```
     #[inline]
     pub fn raw_data(&self) -> &[usize] {
         &self.data
     }
 
     #[inline]
+    /// Checks whether this has no integers saved.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use succinct_neo::int_vec::{IntVec, IntAccess};
+    /// 
+    /// let mut v = IntVec::new(32);
+    ///
+    /// assert!(v.is_empty());
+    ///
+    /// v.push(125);
+    ///
+    /// assert!(!v.is_empty());
+    /// ```
     pub fn is_empty(&self) -> bool {
         self.size == 0
     }
 
     #[inline]
+    /// The amount of integers saved in this vector.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use succinct_neo::int_vec::IntVec;
+    /// 
+    /// let mut v = IntVec::new(10);
+    /// for i in 0..20 {
+    ///     v.push(i);
+    /// }
+    ///
+    /// assert_eq!(20, v.len());
+    /// 
+    /// ```
     pub fn len(&self) -> usize {
         self.size
     }
 
+    /// An iterator over this vector's saved integers.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use succinct_neo::int_vec::IntVec;
+    /// 
+    /// let mut v = IntVec::new(10);
+    /// for i in (0..20).rev() {
+    ///     v.push(i);
+    /// }
+    ///
+    /// assert!(Iterator::eq((0..20).rev(), v.iter()))
+    /// ```
     #[inline]
     pub fn iter(&self) -> Iter {
         Iter { i: 0, v: self }
@@ -195,6 +344,27 @@ impl IntVec {
         self.data[index_block] |= value << index_offset;
     }
 
+    /// Modifies this vector to require the minimum amount of bits per saved element.
+    ///
+    /// This searches for the largest element in the vector. It then saves all saved all integers
+    /// with its number of required bits.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use succinct_neo::int_vec::IntVec;
+    ///
+    /// let mut v = IntVec::with_capacity(9, 25);
+    ///
+    /// // All these numbers should take 3 bits to save
+    /// for i in (0..50).step_by(2) {
+    ///     v.push(i % 8)
+    /// }
+    ///
+    /// v.bit_compress();
+    ///
+    /// assert_eq!(3, v.bit_width());
+    /// ```
     pub fn bit_compress(&mut self) {
         let Some(min_required_bits) = self.iter().reduce(|acc, v| { acc.max(v) }).map(|min| if min > 1 { (min - 1).ilog2() as usize + 1 } else { 1 }) else {
             // No elements in here
@@ -216,6 +386,27 @@ impl IntVec {
         }
     }
 
+    /// Shrinks the allocated backing storage behind this int vector to fit the amount of saved
+    /// integers.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use succinct_neo::int_vec::IntVec;
+    ///
+    /// let mut v = IntVec::with_capacity(5, 200);
+    ///
+    /// // All these numbers should take 3 bits to save
+    /// for i in (0..50) {
+    ///     v.push(i % 8)
+    /// }
+    ///
+    /// v.shrink_to_fit();
+    ///
+    /// // 50 numbers each using 5 bits is 250 bits of storage.
+    /// // This fits into 4 * 64 bit blocks (= 256 bits), which in total would fit 51 integers.
+    /// assert_eq!(51, v.capacity());
+    /// ```
     pub fn shrink_to_fit(&mut self) {
         let required_blocks = Self::num_required_blocks::<usize>(self.size, self.width);
         self.data.truncate(required_blocks);
@@ -473,7 +664,6 @@ mod test {
 
         v.bit_compress();
 
-
         assert_eq!(3, v.width, "incorrect word width after compression");
 
         // We were at 256 bits before with a bit size of 3.
@@ -503,6 +693,5 @@ mod test {
         // We now have 50 elements in the vector, taking up 50 * 9 = 450 bits and fitting into
         // 8 * 64 bit blocks = 512 bits. These fit 512 / 9 = 56 integers in total.
         assert_eq!(56, v.capacity, "incorrect capacity after shrink");
-
     }
 }
