@@ -34,19 +34,23 @@ impl IntVec {
     }
 
     #[inline]
+    fn recalculate_capacity(&mut self) {
+        self.capacity = self.data.capacity() * Self::block_width() / self.width;
+    }
+
+    #[inline]
     pub fn new(width: usize) -> Self {
         Self::with_capacity(width, 8)
     }
 
     #[inline]
     pub fn with_capacity(width: usize, capacity: usize) -> Self {
-        let block_size = Self::block_width();
-        let num_blocks = ((capacity as f64 * width as f64) / block_size as f64).ceil() as usize;
+        let num_blocks = Self::num_required_blocks::<usize>(capacity, width);
 
         let mut temp = Self {
             data: Vec::with_capacity(num_blocks),
             width,
-            capacity: num_blocks * block_size / width,
+            capacity: num_blocks * Self::block_width() / width,
             size: 0,
         };
 
@@ -91,7 +95,7 @@ impl IntVec {
             *self.data.last_mut().unwrap() |= (v & fitting_mask) << offset;
             let hi = (v & mask) >> fitting_bits;
             self.data.push(hi);
-            self.capacity = self.data.capacity() * Self::block_width() / self.width;
+            self.recalculate_capacity();
             self.size += 1;
             return;
         }
@@ -201,7 +205,7 @@ impl IntVec {
 
         let old_width = self.width;
         self.width = min_required_bits;
-        self.capacity = self.data.capacity() * Self::block_width() / self.width;
+        self.recalculate_capacity();
 
         for i in 0..self.len() {
             // SAFETY: we know the amount of values in this bitvector, so there's no problem
@@ -216,8 +220,7 @@ impl IntVec {
         let required_blocks = Self::num_required_blocks::<usize>(self.size, self.width);
         self.data.truncate(required_blocks);
         self.data.shrink_to_fit();
-        dbg!(required_blocks);
-        self.capacity = self.data.capacity() * Self::block_width() / self.width;
+        self.recalculate_capacity();
     }
 }
 
