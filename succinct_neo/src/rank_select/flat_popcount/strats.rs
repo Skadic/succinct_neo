@@ -1,10 +1,10 @@
 use super::L2_INDEX_MASK;
 
 #[cfg(all(
-target_arch = "x86_64",
-target_feature = "sse2",
-target_feature = "ssse3",
-target_feature = "sse4.1"
+    target_arch = "x86_64",
+    target_feature = "sse2",
+    target_feature = "ssse3",
+    target_feature = "sse4.1"
 ))]
 pub use simd::SimdSearch;
 
@@ -83,29 +83,30 @@ impl SelectStrategy for BinarySearch {
 }
 
 #[cfg(all(
-target_arch = "x86_64",
-target_feature = "sse2",
-target_feature = "ssse3",
-target_feature = "sse4.1"
+    target_arch = "x86_64",
+    target_feature = "sse2",
+    target_feature = "ssse3",
+    target_feature = "sse4.1"
 ))]
 mod simd {
     use super::SelectStrategy;
-    use std::arch::x86_64::*;
     use crate::rank_select::flat_popcount::L2_INDEX_MASK;
+    use std::arch::x86_64::*;
 
     pub struct SimdSearch;
 
     impl SelectStrategy for SimdSearch {
         fn find_l2(mut entry: u128, rank: usize) -> (usize, usize) {
             // We zero the L1 Index data in the entry
-            unsafe { *(&mut entry as *mut u128 as *mut u64).offset(1) &= (1 << 20) - 1; }
+            unsafe {
+                *(&mut entry as *mut u128 as *mut u64).offset(1) &= (1 << 20) - 1;
+            }
             let rank = rank as i16;
             let l2_index = unsafe {
                 // Put the values into a wide 128 bit register
                 let values = _mm_loadu_si128(&entry as *const u128 as *const __m128i);
                 // Don't even ask
-                let shuffle_mask =
-                    _mm_set_epi8(10, 9, 8, 7, 7, 6, 5, 4, 4, 3, 2, 1, 1, 0, -1, -1);
+                let shuffle_mask = _mm_set_epi8(10, 9, 8, 7, 7, 6, 5, 4, 4, 3, 2, 1, 1, 0, -1, -1);
                 let values = _mm_shuffle_epi8(values, shuffle_mask);
 
                 // Shift values by 4 bits to the right
@@ -131,14 +132,17 @@ mod simd {
 
                 (res.leading_zeros() - 16) >> 1
             } as usize;
-            (l2_index, ((entry >> (84 - 12 * l2_index)) & L2_INDEX_MASK) as usize)
+            (
+                l2_index,
+                ((entry >> (84 - 12 * l2_index)) & L2_INDEX_MASK) as usize,
+            )
         }
     }
 }
 
 #[cfg(test)]
 mod test {
-    use super::{LinearSearch, BinarySearch, SelectStrategy};
+    use super::{BinarySearch, LinearSearch, SelectStrategy};
 
     macro_rules! strat_tests {
         {$strat:ty, $test_name:ident} => {
@@ -171,10 +175,10 @@ mod test {
     }
 
     #[cfg(all(
-    target_arch = "x86_64",
-    target_feature = "sse2",
-    target_feature = "ssse3",
-    target_feature = "sse4.1"
+        target_arch = "x86_64",
+        target_feature = "sse2",
+        target_feature = "ssse3",
+        target_feature = "sse4.1"
     ))]
     mod simd {
         use super::*;

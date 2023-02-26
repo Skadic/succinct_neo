@@ -1,6 +1,6 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use rand::{thread_rng, Rng};
-use succinct_neo::int_vec::{Dynamic, IntVector, IntVec};
+use succinct_neo::int_vec::{Dynamic, IntVec, IntVector};
 
 #[allow(non_upper_case_globals)]
 const KiB: usize = 1024;
@@ -50,22 +50,18 @@ fn bench_iv_ops(c: &mut Criterion) {
         )
     });
 
-    let mut iv = IntVec::<Dynamic>::with_capacity(IV_WIDTH,1);
+    let mut iv = IntVec::<Dynamic>::with_capacity(IV_WIDTH, 1);
     group.bench_function("push_no_reserve", |b| {
-        b.iter(
-            || {
-                iv.push(black_box(0));
-            },
-        )
+        b.iter(|| {
+            iv.push(black_box(0));
+        })
     });
 
-    let mut iv = IntVec::<Dynamic>::with_capacity(IV_WIDTH,2_000_000_000);
+    let mut iv = IntVec::<Dynamic>::with_capacity(IV_WIDTH, 2_000_000_000);
     group.bench_function("push_with_reserve", |b| {
-        b.iter(
-            || {
-                iv.push(black_box(0));
-            },
-        )
+        b.iter(|| {
+            iv.push(black_box(0));
+        })
     });
 }
 

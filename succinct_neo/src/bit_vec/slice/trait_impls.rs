@@ -92,8 +92,8 @@ impl<'a, Backing: BitGet> IntoIterator for &'a BitSlice<Backing> {
 
 #[cfg(test)]
 mod test {
-    use crate::bit_vec::BitVec;
     use super::{BitGet, BitModify};
+    use crate::bit_vec::BitVec;
 
     #[test]
     fn full_range_test() {

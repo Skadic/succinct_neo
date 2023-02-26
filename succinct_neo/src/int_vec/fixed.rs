@@ -1,4 +1,4 @@
-use crate::int_vec::{num_required_blocks, Fixed, IntVec, IntVector, Dynamic};
+use crate::int_vec::{num_required_blocks, Dynamic, Fixed, IntVec, IntVector};
 
 impl<const WIDTH: usize> IntVec<Fixed<WIDTH>> {
     /// Creates an integer vector with a given bit width and a default capacity of 8.
@@ -53,7 +53,7 @@ impl<const WIDTH: usize> IntVec<Fixed<WIDTH>> {
             width: WIDTH,
             capacity: num_blocks * Self::block_width() / WIDTH,
             size: 0,
-            _marker: Default::default()
+            _marker: Default::default(),
         };
 
         temp.data.push(0);
@@ -110,7 +110,11 @@ impl<const WIDTH: usize> IntVec<Fixed<WIDTH>> {
     /// assert_eq!(60, v.get(2));
     /// ```
     pub fn push(&mut self, v: usize) {
-        assert!(v < (1 << WIDTH), "value too large for {}-bit integer", WIDTH);
+        assert!(
+            v < (1 << WIDTH),
+            "value too large for {}-bit integer",
+            WIDTH
+        );
         let offset = self.current_offset();
         let mask = self.mask();
         if offset == 0 {
@@ -161,7 +165,11 @@ impl<const WIDTH: usize> IntVector for IntVec<Fixed<WIDTH>> {
     }
 
     fn get(&self, index: usize) -> usize {
-        assert!(index < self.len(), "length is {} but index is {index}", self.len());
+        assert!(
+            index < self.len(),
+            "length is {} but index is {index}",
+            self.len()
+        );
         unsafe { self.get_unchecked(index) }
     }
 
@@ -190,8 +198,15 @@ impl<const WIDTH: usize> IntVector for IntVec<Fixed<WIDTH>> {
     }
 
     fn set(&mut self, index: usize, value: usize) {
-        assert!(index < self.len(), "length is {} but index is {index}", self.len());
-        assert!(value < (1 << WIDTH), "value {value} too large for {WIDTH}-bit integer");
+        assert!(
+            index < self.len(),
+            "length is {} but index is {index}",
+            self.len()
+        );
+        assert!(
+            value < (1 << WIDTH),
+            "value {value} too large for {WIDTH}-bit integer"
+        );
         unsafe { self.set_unchecked(index, value) }
     }
 

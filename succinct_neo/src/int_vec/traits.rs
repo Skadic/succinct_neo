@@ -1,4 +1,3 @@
-
 /// Allows access to integers in a datastructure
 pub trait IntVector {
     /// Gets an integer without making any checks for bounds etc.
@@ -41,7 +40,6 @@ pub trait IntVector {
     /// ```
     fn len(&self) -> usize;
 
-
     /// Checks whether this has no integers saved.
     ///
     /// # Examples
@@ -62,4 +60,3 @@ pub trait IntVector {
         self.len() == 0
     }
 }
-

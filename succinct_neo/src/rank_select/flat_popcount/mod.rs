@@ -21,7 +21,7 @@ static_assertions::assert_eq_size!(usize, u64);
 
 mod strats;
 
-use crate::int_vec::{Dynamic, IntVector, IntVec};
+use crate::int_vec::{Dynamic, IntVec, IntVector};
 use crate::rank_select::traits::SelectSupport;
 pub use strats::*;
 
@@ -227,7 +227,8 @@ impl<'a, T> FlatPopcount<'a, T> {
     /// The l1 start index must be in range of the l1 index.
     unsafe fn find_l1(&self, l1_start_index: usize, rank: usize) -> usize {
         let n = self.l1_index.len();
-        let mut ptr = (self.l1_index.get_unchecked(l1_start_index) as *const u128 as *const usize).add(1);
+        let mut ptr =
+            (self.l1_index.get_unchecked(l1_start_index) as *const u128 as *const usize).add(1);
         // Find the l1 block that contains the 1 we need
         for l1_index in l1_start_index..n {
             let l1 = *ptr >> 20;
