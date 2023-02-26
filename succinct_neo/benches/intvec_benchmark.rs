@@ -1,6 +1,6 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use rand::{thread_rng, Rng};
-use succinct_neo::int_vec::{Dynamic, IntAccess, IntVec};
+use succinct_neo::int_vec::{Dynamic, IntVector, IntVec};
 
 #[allow(non_upper_case_globals)]
 const KiB: usize = 1024;
@@ -12,7 +12,7 @@ const IV_ELEMS: usize = IV_BITS / IV_WIDTH;
 const IV_MAX_INT: usize = (1 << IV_WIDTH) - 1;
 
 fn setup_iv() -> IntVec<Dynamic> {
-    let mut iv = IntVec::with_capacity(17, IV_ELEMS);
+    let mut iv = IntVec::<Dynamic>::with_capacity(17, IV_ELEMS);
     let mut rng = rand::thread_rng();
 
     for _ in 0..IV_ELEMS {
@@ -50,7 +50,7 @@ fn bench_iv_ops(c: &mut Criterion) {
         )
     });
 
-    let mut iv = IntVec::with_capacity(IV_WIDTH,1);
+    let mut iv = IntVec::<Dynamic>::with_capacity(IV_WIDTH,1);
     group.bench_function("push_no_reserve", |b| {
         b.iter(
             || {
@@ -59,7 +59,7 @@ fn bench_iv_ops(c: &mut Criterion) {
         )
     });
 
-    let mut iv = IntVec::with_capacity(IV_WIDTH,2_000_000_000);
+    let mut iv = IntVec::<Dynamic>::with_capacity(IV_WIDTH,2_000_000_000);
     group.bench_function("push_with_reserve", |b| {
         b.iter(
             || {

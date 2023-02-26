@@ -21,7 +21,7 @@ static_assertions::assert_eq_size!(usize, u64);
 
 mod strats;
 
-use crate::int_vec::{Dynamic, IntAccess, IntVec};
+use crate::int_vec::{Dynamic, IntVector, IntVec};
 use crate::rank_select::traits::SelectSupport;
 pub use strats::*;
 
@@ -69,7 +69,7 @@ impl<'a, T> FlatPopcount<'a, T> {
             return Self {
                 backing,
                 l1_index: Vec::with_capacity(0),
-                sampled_ones: IntVec::new(1),
+                sampled_ones: IntVec::<Dynamic>::new(1),
                 _mark: Default::default(),
                 number_of_ones: 0,
             };
@@ -80,7 +80,7 @@ impl<'a, T> FlatPopcount<'a, T> {
         let mut temp = Self {
             backing,
             l1_index: Vec::with_capacity((n as f64 / L1_BLOCK_SIZE as f64).ceil() as usize + 1),
-            sampled_ones: IntVec::new(log_n),
+            sampled_ones: IntVec::<Dynamic>::new(log_n),
             _mark: Default::default(),
             number_of_ones: 0,
         };
@@ -335,7 +335,7 @@ impl<Strat: SelectStrategy> SelectSupport<true> for FlatPopcount<'_, Strat> {
 #[cfg(test)]
 mod test {
     use super::{FlatPopcount, L2_INDEX_MASK};
-    use crate::int_vec::IntAccess;
+    use crate::int_vec::IntVector;
     use crate::rank_select::flat_popcount::BinarySearch;
     use crate::rank_select::traits::SelectSupport;
     use crate::{bit_vec::BitVec, rank_select::traits::RankSupport};
