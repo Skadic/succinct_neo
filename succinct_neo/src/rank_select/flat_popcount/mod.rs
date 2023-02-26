@@ -21,7 +21,7 @@ static_assertions::assert_eq_size!(usize, u64);
 
 mod strats;
 
-use crate::int_vec::{IntAccess, IntVec};
+use crate::int_vec::{Dynamic, IntAccess, IntVec};
 use crate::rank_select::traits::SelectSupport;
 pub use strats::*;
 
@@ -34,7 +34,7 @@ pub use strats::*;
 pub struct FlatPopcount<'a, Strat = LinearSearch> {
     backing: &'a BitVec,
     l1_index: Vec<u128>,
-    sampled_ones: IntVec,
+    sampled_ones: IntVec<Dynamic>,
     number_of_ones: usize,
     _mark: PhantomData<Strat>,
 }

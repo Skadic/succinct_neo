@@ -1,6 +1,6 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use rand::{thread_rng, Rng};
-use succinct_neo::int_vec::{IntAccess, IntVec};
+use succinct_neo::int_vec::{Dynamic, IntAccess, IntVec};
 
 #[allow(non_upper_case_globals)]
 const KiB: usize = 1024;
@@ -11,7 +11,7 @@ const IV_WIDTH: usize = 17;
 const IV_ELEMS: usize = IV_BITS / IV_WIDTH;
 const IV_MAX_INT: usize = (1 << IV_WIDTH) - 1;
 
-fn setup_iv() -> IntVec {
+fn setup_iv() -> IntVec<Dynamic> {
     let mut iv = IntVec::with_capacity(17, IV_ELEMS);
     let mut rng = rand::thread_rng();
 
