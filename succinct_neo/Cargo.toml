@@ -15,9 +15,6 @@ categories = ["data-structures"]
 [lib]
 bench = false
 
-[profile.release]
-debug = 1
-
 [dependencies]
 itertools = "0.10.5"
 static_assertions = "1.1.0"
