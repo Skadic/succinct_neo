@@ -243,7 +243,7 @@ impl<const WIDTH: usize> IntVector for FixedIntVec<WIDTH> {
             "length is {} but index is {index}",
             self.len()
         );
-        assert!(
+        debug_assert!(
             value < (1 << WIDTH),
             "value {value} too large for {WIDTH}-bit integer"
         );
@@ -251,7 +251,7 @@ impl<const WIDTH: usize> IntVector for FixedIntVec<WIDTH> {
     }
 
     fn push(&mut self, v: usize) {
-        assert!(
+        debug_assert!(
             v < (1 << WIDTH),
             "value too large for {WIDTH}-bit integer"
         );
