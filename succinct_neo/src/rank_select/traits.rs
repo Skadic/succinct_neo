@@ -68,7 +68,7 @@ pub trait RankSupport {
     /// bv.flip(20);
     ///
     /// let rank_ds = FlatPopcount::<()>::new(&bv);
-    /// 
+    ///
     /// assert_eq!(0, rank_ds.rank_dyn(5, true));
     /// assert_eq!(0, rank_ds.rank_dyn(10, true));
     /// assert_eq!(1, rank_ds.rank_dyn(11, true));

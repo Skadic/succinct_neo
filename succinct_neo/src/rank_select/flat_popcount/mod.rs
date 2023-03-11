@@ -21,7 +21,7 @@ static_assertions::assert_eq_size!(usize, u64);
 
 mod strats;
 
-use crate::int_vec::{IntAccess, IntVec};
+use crate::int_vec::{DynamicIntVec, IntVector};
 use crate::rank_select::traits::SelectSupport;
 pub use strats::*;
 
@@ -34,7 +34,7 @@ pub use strats::*;
 pub struct FlatPopcount<'a, Strat = LinearSearch> {
     backing: &'a BitVec,
     l1_index: Vec<u128>,
-    sampled_ones: IntVec,
+    sampled_ones: DynamicIntVec,
     number_of_ones: usize,
     _mark: PhantomData<Strat>,
 }
@@ -69,7 +69,7 @@ impl<'a, T> FlatPopcount<'a, T> {
             return Self {
                 backing,
                 l1_index: Vec::with_capacity(0),
-                sampled_ones: IntVec::new(1),
+                sampled_ones: DynamicIntVec::new(1),
                 _mark: Default::default(),
                 number_of_ones: 0,
             };
@@ -80,7 +80,7 @@ impl<'a, T> FlatPopcount<'a, T> {
         let mut temp = Self {
             backing,
             l1_index: Vec::with_capacity((n as f64 / L1_BLOCK_SIZE as f64).ceil() as usize + 1),
-            sampled_ones: IntVec::new(log_n),
+            sampled_ones: DynamicIntVec::new(log_n),
             _mark: Default::default(),
             number_of_ones: 0,
         };
@@ -227,7 +227,8 @@ impl<'a, T> FlatPopcount<'a, T> {
     /// The l1 start index must be in range of the l1 index.
     unsafe fn find_l1(&self, l1_start_index: usize, rank: usize) -> usize {
         let n = self.l1_index.len();
-        let mut ptr = (self.l1_index.get_unchecked(l1_start_index) as *const u128 as *const usize).add(1);
+        let mut ptr =
+            (self.l1_index.get_unchecked(l1_start_index) as *const u128 as *const usize).add(1);
         // Find the l1 block that contains the 1 we need
         for l1_index in l1_start_index..n {
             let l1 = *ptr >> 20;
@@ -335,7 +336,7 @@ impl<Strat: SelectStrategy> SelectSupport<true> for FlatPopcount<'_, Strat> {
 #[cfg(test)]
 mod test {
     use super::{FlatPopcount, L2_INDEX_MASK};
-    use crate::int_vec::IntAccess;
+    use crate::int_vec::IntVector;
     use crate::rank_select::flat_popcount::BinarySearch;
     use crate::rank_select::traits::SelectSupport;
     use crate::{bit_vec::BitVec, rank_select::traits::RankSupport};

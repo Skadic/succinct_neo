@@ -285,9 +285,9 @@ impl<Backing> Iter<Backing> {
 
 #[cfg(test)]
 mod test {
-    use crate::bit_vec::BitVec;
     use super::{BitModify, BitSlice};
-    
+    use crate::bit_vec::BitVec;
+
     #[test]
     fn is_empty_test() {
         let mut bv = BitVec::new(80);

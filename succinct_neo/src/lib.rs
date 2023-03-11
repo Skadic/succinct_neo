@@ -2,7 +2,7 @@
 #![deny(rustdoc::invalid_html_tags)] // no broken html in docs
 #![deny(rustdoc::invalid_rust_codeblocks)] // code blocks should not be broken
 
-pub mod rank_select;
 pub mod bit_vec;
 pub mod int_vec;
+pub mod rank_select;
 pub mod traits;

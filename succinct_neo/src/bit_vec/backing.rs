@@ -59,23 +59,28 @@ macro_rules! primitive_bit_ops {
     }
 }
 
-primitive_bit_ops!{
+primitive_bit_ops! {
     u8, u16, u32, u64
 }
 
-primitive_bit_ops!{ usize }
+primitive_bit_ops! { usize }
 
 impl BitGet for [usize] {
     #[inline]
     unsafe fn get_bit_unchecked(&self, index: usize) -> bool {
         let block_index = index >> WORD_EXP;
         let internal_index = index & WORD_MASK;
-        self.get_unchecked(block_index).get_bit_unchecked(internal_index)
+        self.get_unchecked(block_index)
+            .get_bit_unchecked(internal_index)
     }
 
     #[inline]
     fn get_bit(&self, index: usize) -> bool {
-        assert!(index < self.len() << WORD_EXP, "index is {index} but length is {}", self.len() << WORD_EXP);
+        assert!(
+            index < self.len() << WORD_EXP,
+            "index is {index} but length is {}",
+            self.len() << WORD_EXP
+        );
         unsafe { self.get_bit_unchecked(index) }
     }
 }
@@ -86,12 +91,17 @@ impl BitModify for [usize] {
         let block_index = index >> WORD_EXP;
         let internal_index = index & WORD_MASK;
 
-        self.get_unchecked_mut(block_index).set_bit_unchecked(internal_index, value);
+        self.get_unchecked_mut(block_index)
+            .set_bit_unchecked(internal_index, value);
     }
 
     #[inline]
     fn set_bit(&mut self, index: usize, value: bool) {
-        assert!(index < self.len() << WORD_EXP, "index is {index} but length is {}", self.len() << WORD_EXP);
+        assert!(
+            index < self.len() << WORD_EXP,
+            "index is {index} but length is {}",
+            self.len() << WORD_EXP
+        );
         unsafe { self.set_bit_unchecked(index, value) }
     }
 
@@ -100,12 +110,17 @@ impl BitModify for [usize] {
         let block_index = index >> WORD_EXP;
         let internal_index = index & WORD_MASK;
 
-        self.get_unchecked_mut(block_index).flip_bit_unchecked(internal_index)
+        self.get_unchecked_mut(block_index)
+            .flip_bit_unchecked(internal_index)
     }
 
     #[inline]
     fn flip_bit(&mut self, index: usize) {
-        assert!(index < self.len() << WORD_EXP, "index is {index} but length is {}", self.len() << WORD_EXP);
+        assert!(
+            index < self.len() << WORD_EXP,
+            "index is {index} but length is {}",
+            self.len() << WORD_EXP
+        );
         unsafe { self.flip_bit_unchecked(index) }
     }
 }
@@ -203,7 +218,7 @@ mod test {
         }
     }
 
-    test_primitive!{
+    test_primitive! {
         u8, u16, u32, u64, usize
     }
 
@@ -228,7 +243,10 @@ mod test {
             assert_eq!(i % 2 == 1, slice.get_bit(i))
         }
 
-        assert_eq!(0b0101_0101_0101_0101_0101_0101_0101_0101_0101_0101_0101_0101_0101_0101_0101_0101, slice[0])
+        assert_eq!(
+            0b0101_0101_0101_0101_0101_0101_0101_0101_0101_0101_0101_0101_0101_0101_0101_0101,
+            slice[0]
+        )
     }
 
     #[test]

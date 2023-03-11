@@ -172,11 +172,11 @@ impl AsMut<BitSlice<Vec<usize>>> for BitVec {
 
 #[cfg(test)]
 mod test {
-    use crate::bit_vec::BitGet;
     use crate::bit_vec::slice::BitSlice;
+    use crate::bit_vec::BitGet;
 
-    use super::BitVec;
     use super::traits::BitModify;
+    use super::BitVec;
 
     #[test]
     fn basics_test() {
