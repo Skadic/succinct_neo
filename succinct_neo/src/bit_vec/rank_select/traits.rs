@@ -1,4 +1,4 @@
-pub trait RankSupport {
+pub trait BitRankSupport {
     /// Calculates the number of zeroes or ones up to and not including a given index.
     ///
     /// This version uses const generics in hopes that the compiler can optimize the code better
@@ -17,9 +17,9 @@ pub trait RankSupport {
     /// ```
     /// use succinct_neo::{
     ///     bit_vec::BitVec,
-    ///     rank_select::{
+    ///     bit_vec::rank_select::{
     ///         FlatPopcount,
-    ///         RankSupport
+    ///         BitRankSupport
     ///     }
     /// };
     ///
@@ -55,9 +55,9 @@ pub trait RankSupport {
     /// ```
     /// use succinct_neo::{
     ///     bit_vec::BitVec,
-    ///     rank_select::{
+    ///     bit_vec::rank_select::{
     ///         FlatPopcount,
-    ///         RankSupport
+    ///         BitRankSupport
     ///     }
     /// };
     ///
@@ -88,7 +88,7 @@ pub trait RankSupport {
     }
 }
 
-pub trait SelectSupport<const TARGET: bool> {
+pub trait BitSelectSupport<const TARGET: bool> {
     /// Calculates the index of the nth time the given value shows up.
     ///
     /// If [`TARGET`] is `true`, this will search for the nth one, if it is `false`, this will

@@ -13,6 +13,7 @@ mod backing;
 /// Bit slices offering views into types that offer bit access
 pub mod slice;
 pub mod traits;
+pub mod rank_select;
 
 /// The word size on this machine in bits
 const WORD_SIZE: usize = 64;

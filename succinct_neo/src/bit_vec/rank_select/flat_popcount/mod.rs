@@ -1,7 +1,8 @@
 use crate::bit_vec::{BitGet, BitVec};
 use std::marker::PhantomData;
 
-use super::traits::RankSupport;
+use crate::bit_vec::rank_select::traits::{BitRankSupport, BitSelectSupport};
+use crate::int_vec::{DynamicIntVec, IntVector};
 
 /// The number of bits in an L1 block
 const L1_BLOCK_SIZE: usize = 4096;
@@ -21,8 +22,6 @@ static_assertions::assert_eq_size!(usize, u64);
 
 mod strats;
 
-use crate::int_vec::{DynamicIntVec, IntVector};
-use crate::rank_select::traits::SelectSupport;
 pub use strats::*;
 
 /// An implementation of the rank/select data structure described by Florian Kurpicz in his paper
@@ -51,7 +50,7 @@ impl<'a, T> FlatPopcount<'a, T> {
     /// ```
     /// use succinct_neo::{
     ///     bit_vec::BitVec,
-    ///     rank_select::{FlatPopcount, RankSupport}
+    ///     bit_vec::rank_select::{FlatPopcount, BitRankSupport}
     /// };
     ///
     /// let mut bv = BitVec::new(64);
@@ -149,7 +148,7 @@ impl<'a, T> FlatPopcount<'a, T> {
     /// ```
     /// use succinct_neo::{
     ///     bit_vec::BitVec,
-    ///     rank_select::{FlatPopcount, RankSupport}
+    ///     bit_vec::rank_select::{FlatPopcount, BitRankSupport}
     /// };
     ///
     /// let bv = BitVec::new(64);
@@ -170,7 +169,7 @@ impl<'a, T> FlatPopcount<'a, T> {
     /// ```
     /// use succinct_neo::{
     ///     bit_vec::BitVec,
-    ///     rank_select::{FlatPopcount, RankSupport}
+    ///     bit_vec::rank_select::{FlatPopcount, BitRankSupport}
     /// };
     ///
     /// let bv = BitVec::new(64);
@@ -241,7 +240,7 @@ impl<'a, T> FlatPopcount<'a, T> {
     }
 }
 
-impl<T> RankSupport for FlatPopcount<'_, T> {
+impl<T> BitRankSupport for FlatPopcount<'_, T> {
     fn rank<const TARGET: bool>(&self, index: usize) -> usize {
         let l1_index = index >> L1_BLOCK_SIZE_EXP;
         let l2_index = (index >> L2_BLOCK_SIZE_EXP) & 0b0111;
@@ -279,7 +278,7 @@ impl<T> RankSupport for FlatPopcount<'_, T> {
     }
 }
 
-impl<Strat: SelectStrategy> SelectSupport<true> for FlatPopcount<'_, Strat> {
+impl<Strat: SelectStrategy> BitSelectSupport<true> for FlatPopcount<'_, Strat> {
     fn select(&self, mut rank: usize) -> Option<usize> {
         if rank > self.number_of_ones {
             return None;
@@ -336,10 +335,16 @@ impl<Strat: SelectStrategy> SelectSupport<true> for FlatPopcount<'_, Strat> {
 #[cfg(test)]
 mod test {
     use super::{FlatPopcount, L2_INDEX_MASK};
-    use crate::int_vec::IntVector;
-    use crate::rank_select::flat_popcount::BinarySearch;
-    use crate::rank_select::traits::SelectSupport;
-    use crate::{bit_vec::BitVec, rank_select::traits::RankSupport};
+    use crate::{
+        bit_vec::{
+            rank_select::{
+                flat_popcount::BinarySearch,
+                traits::{BitRankSupport, BitSelectSupport},
+            },
+            BitVec,
+        },
+        int_vec::IntVector,
+    };
 
     #[inline]
     fn l1(pop: &FlatPopcount, index: usize) -> usize {
