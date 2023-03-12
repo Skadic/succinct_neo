@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkGroup, BenchmarkId};
+use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
 use rand::{thread_rng, Rng};
 use succinct_neo::int_vec::{DynamicIntVec, FixedIntVec, IntVector};
 

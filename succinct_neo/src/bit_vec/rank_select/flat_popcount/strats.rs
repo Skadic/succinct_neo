@@ -90,7 +90,7 @@ impl SelectStrategy for BinarySearch {
 ))]
 mod simd {
     use super::SelectStrategy;
-    use crate::rank_select::flat_popcount::L2_INDEX_MASK;
+    use crate::bit_vec::rank_select::flat_popcount::L2_INDEX_MASK;
     use std::arch::x86_64::*;
 
     pub struct SimdSearch;

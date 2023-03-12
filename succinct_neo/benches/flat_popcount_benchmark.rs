@@ -5,9 +5,9 @@ use rand::{thread_rng, Rng};
 
 use succinct_neo::{
     bit_vec::BitVec,
-    rank_select::{
+    bit_vec::rank_select::{
         flat_popcount::{BinarySearch, LinearSearch},
-        FlatPopcount, RankSupport, SelectSupport,
+        FlatPopcount, BitRankSupport, BitSelectSupport,
     },
 };
 
