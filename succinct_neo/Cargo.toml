@@ -18,7 +18,7 @@ bench = false
 [dependencies]
 itertools = "0.10.5"
 static_assertions = "1.1.0"
-paste = "1.0.11"
+paste = "1.0.12"
 
 [dev-dependencies]
 criterion = "0.4.0"
@@ -34,4 +34,8 @@ harness = false
 
 [[bench]]
 name = "flat_popcount_benchmark"
+harness = false
+
+[[bench]]
+name = "rolling_hash_benchmark"
 harness = false
