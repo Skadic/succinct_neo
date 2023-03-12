@@ -1,10 +1,19 @@
+use std::collections::{HashSet, HashMap};
 use std::fmt::Debug;
-use std::hash::{Hash, Hasher};
+use std::hash::{Hash, Hasher, BuildHasherDefault};
 
+mod cyclic_polynomial;
 mod rabin_karp;
+mod traits;
 
+pub use cyclic_polynomial::CyclicPolynomial;
 pub use rabin_karp::RabinKarp;
+pub use traits::*;
 
+pub type HashedByteSet<'a> = HashSet<HashedBytes<'a>, HashedBytesBuildHasher>;
+pub type HashedByteMap<'a, V=HashedBytes<'a>> = HashMap<HashedBytes<'a>, V, HashedBytesBuildHasher>;
+
+#[derive(Clone, Copy)]
 pub struct HashedBytes<'a> {
     bytes: &'a [u8],
     hash: u64,
@@ -28,6 +37,7 @@ impl<'a> HashedBytes<'a> {
         self.bytes
     }
 
+    #[inline]
     pub fn hash(&self) -> u64 {
         self.hash
     }
@@ -46,3 +56,18 @@ impl PartialEq for HashedBytes<'_> {
 }
 
 impl Eq for HashedBytes<'_> {}
+
+/// Hasher only for HashedBytes
+#[derive(Default)]
+pub struct HashedBytesHasher(u64);
+impl Hasher for HashedBytesHasher {
+    fn finish(&self) -> u64 {
+        self.0
+    }
+
+    fn write(&mut self, bytes: &[u8]) {
+        self.0 = u64::from_ne_bytes(bytes.try_into().unwrap());
+    }
+}
+
+pub type HashedBytesBuildHasher = BuildHasherDefault<HashedBytesHasher>;

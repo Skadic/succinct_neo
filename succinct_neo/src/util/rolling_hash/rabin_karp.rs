@@ -1,4 +1,4 @@
-use super::HashedBytes;
+use super::{HashedBytes, RollingHash};
 
 /// Rabin Karp rolling hashes for strings (or byte arrays)
 pub struct RabinKarp<'a> {
@@ -20,7 +20,10 @@ impl<'a> RabinKarp<'a> {
 
         let mut hash = 0;
         for i in (1..window_size).rev() {
-            hash = ((hash + s[i] as u64) << 1) % prime;
+            hash = (hash + s[i] as u64) << 1;
+            if hash.leading_zeros() < 2 {
+                hash %= prime;
+            }
         }
         hash += s[0] as u64;
         hash %= prime;
@@ -34,13 +37,15 @@ impl<'a> RabinKarp<'a> {
             done: false,
         }
     }
+}
 
+impl<'a> RollingHash<'a> for RabinKarp<'a> {
     #[inline]
-    pub fn hash(&self) -> u64 {
+    fn hash(&self) -> u64 {
         self.hash
     }
 
-    pub fn advance(&mut self) -> u64 {
+    fn advance(&mut self) -> u64 {
         if self.offset + self.window_size >= self.s.len() || self.done {
             self.done = true;
             self.offset = self.offset.min(self.s.len() - self.window_size);
@@ -56,7 +61,8 @@ impl<'a> RabinKarp<'a> {
         self.hash
     }
 
-    pub fn hashed_bytes(&self) -> HashedBytes<'a> {
+    #[inline]
+    fn hashed_bytes(&self) -> HashedBytes<'a> {
         HashedBytes::new(
             &self.s[self.offset..self.offset + self.window_size],
             self.hash,
