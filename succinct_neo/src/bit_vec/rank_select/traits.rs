@@ -1,8 +1,9 @@
+/// Trait adding support for rank queries over bit vectors or similar data structures. 
 pub trait BitRankSupport {
     /// Calculates the number of zeroes or ones up to and not including a given index.
     ///
     /// This version uses const generics in hopes that the compiler can optimize the code better
-    /// and should be preferred over [`RankSupport::rank_dyn`] if possible.
+    /// and should be preferred over [`BitRankSupport::rank_dyn`] if possible.
     ///
     /// # Generic Arguments
     ///
@@ -88,10 +89,13 @@ pub trait BitRankSupport {
     }
 }
 
+/// Trait adding support for rank queries over bit vectors or similar data structures. 
+/// The `TARGET` parameter determines, whether this data structure supports select for `1` bits
+/// (`TARGET` is `true`) or `0` bits (`TARGET` is `false`).
 pub trait BitSelectSupport<const TARGET: bool> {
     /// Calculates the index of the nth time the given value shows up.
     ///
-    /// If [`TARGET`] is `true`, this will search for the nth one, if it is `false`, this will
+    /// If `TARGET` is `true`, this will search for the nth one, if it is `false`, this will
     /// search for zeroes.
     ///
     /// # Arguments
@@ -101,6 +105,29 @@ pub trait BitSelectSupport<const TARGET: bool> {
     /// # Examples
     ///
     /// ```
+    /// use succinct_neo::{
+    ///     bit_vec::BitVec,
+    ///     bit_vec::rank_select::{
+    ///         flat_popcount::LinearSearch,
+    ///         FlatPopcount,
+    ///         BitSelectSupport
+    ///     }
+    /// };
+    ///
+    /// let mut bv = BitVec::new(64);
+    ///
+    /// bv.flip(10);
+    /// bv.flip(15);
+    /// bv.flip(20);
+    ///
+    /// // This implements BitSelectSupport<true>
+    /// let rank_ds = FlatPopcount::<LinearSearch>::new(&bv);
+    ///
+    ///
+    /// assert_eq!(Some(10), rank_ds.select(0));
+    /// assert_eq!(Some(15), rank_ds.select(1));
+    /// assert_eq!(Some(20), rank_ds.select(2));
+    /// assert_eq!(None, rank_ds.select(3));
     /// ```
     fn select(&self, rank: usize) -> Option<usize>;
 }

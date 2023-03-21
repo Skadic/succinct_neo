@@ -280,7 +280,7 @@ impl<T> BitRankSupport for FlatPopcount<'_, T> {
 
 impl<Strat: SelectStrategy> BitSelectSupport<true> for FlatPopcount<'_, Strat> {
     fn select(&self, mut rank: usize) -> Option<usize> {
-        if rank > self.number_of_ones {
+        if rank >= self.number_of_ones {
             return None;
         }
         let l1_index = self.sampled_ones.get(rank >> 13);
@@ -431,6 +431,7 @@ mod test {
                 2 * i
             );
         }
+        assert_eq!(None, pop.select(bv.len() / 2), "should return None if rank is higher than number of ones");
     }
 
     #[test]

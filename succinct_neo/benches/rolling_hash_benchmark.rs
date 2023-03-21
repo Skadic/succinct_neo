@@ -6,7 +6,7 @@ use criterion::{
     BenchmarkId, Criterion,
 };
 use rand::{thread_rng, Rng};
-use succinct_neo::util::rolling_hash::{CyclicPolynomial, HashedByteSet, HashedBytes, RabinKarp, RollingHash};
+use succinct_neo::rolling_hash::{CyclicPolynomial, HashedByteSet, HashedBytes, RabinKarp, RollingHash};
 
 const STRING_SIZE: usize = 500_000_000;
 const WINDOW_SIZE: usize = 32;
