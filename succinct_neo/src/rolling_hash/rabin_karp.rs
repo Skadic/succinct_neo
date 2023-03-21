@@ -5,14 +5,42 @@ const PRIME: u64 = 8589935681;
 
 /// Rabin Karp rolling hashes for strings (or byte arrays)
 ///
+/// # Examples
+///
+/// ```
+/// use succinct_neo::rolling_hash::{RabinKarp, RollingHash};
+///
+/// let s = "hashhash";
+///
+/// // Create a new Rabin-Karp hasher with a window size of 4;
+/// let mut rk = RabinKarp::new(s, 4);
+///
+/// let hash_0 = rk.hashed_bytes();
+///
+/// // Move forward 4 steps
+/// rk.advance();
+/// rk.advance();
+/// rk.advance();
+/// rk.advance();
+///
+/// let hash_4 = rk.hashed_bytes();
+///
+/// // The hashes at indices 0 and 4 should be the same! 
+/// assert_eq!(hash_0, hash_4);
+/// ```
 pub struct RabinKarp<'a> {
+    /// The string we are hashing windows of
     s: &'a [u8],
+    /// The current offset into the string. We are hashing s[offset..offset + window_size]
     offset: usize,
+    /// The size of the hashed window
     window_size: usize,
     /// When we need to remove a char from the hash we would actually need to multiply it by BASE^k and
     /// then subtract it. However since our hash is in the finite field GF(p),
     rem: u64,
+    /// The current hash value
     hash: u64,
+    /// Whether we're at the end of the string
     done: bool,
 }
 
@@ -23,38 +51,15 @@ impl<'a> RabinKarp<'a> {
     ///
     /// * `s` - A reference to the string to iterate over.
     /// * `window_size` - The size of the window to be hashed at a time.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use succinct_neo::rolling_hash::{RabinKarp, RollingHash};
-    ///
-    /// let s = "hashhash";
-    ///
-    /// // Create a new Rabin-Karp hasher with a window size of 4;
-    /// let mut rk = RabinKarp::new(s, 4);
-    ///
-    /// let hash_0 = rk.hashed_bytes();
-    ///
-    /// // Move forward 4 steps
-    /// rk.advance();
-    /// rk.advance();
-    /// rk.advance();
-    /// rk.advance();
-    ///
-    /// let hash_4 = rk.hashed_bytes();
-    ///
-    /// // The hashes at indices 0 and 4 should be the same! 
-    /// assert_eq!(hash_0, hash_4);
-    /// ```
     pub fn new<T: AsRef<[u8]> + ?Sized>(s: &'a T, window_size: usize) -> Self {
         let s = s.as_ref();
-        assert!(
+        debug_assert!(
             s.len() >= window_size,
             "string cannot be shorter than window size"
         );
-        let mut rem = 1;
+        debug_assert!(window_size >= 1, "window size must be at least 1");
 
+        // Create the initial hash value
         let mut hash = 0;
         for c in s[0..window_size].iter().map(|&c| c as u64) {
             hash *= BASE;
@@ -62,6 +67,8 @@ impl<'a> RabinKarp<'a> {
             hash %= PRIME;
         }
 
+        // Create the remainder of BASE^(window_size)
+        let mut rem = 1;
         for _ in 0..window_size - 1 {
             rem = (rem * BASE) % PRIME;
         }
