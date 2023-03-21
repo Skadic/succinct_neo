@@ -17,10 +17,7 @@ use super::{HashedBytes, RollingHash};
 /// let hash_0 = cc.hashed_bytes();
 ///
 /// // Move forward 4 steps
-/// cc.advance();
-/// cc.advance();
-/// cc.advance();
-/// cc.advance();
+/// cc.advance_n(4);
 ///
 /// let hash_4 = cc.hashed_bytes();
 ///
@@ -224,9 +221,7 @@ mod test {
         let string_source = "hellohello";
         let mut cc = CyclicPolynomial::new(&string_source, 5);
         let hash1 = cc.hashed_bytes();
-        for _ in 0..5 {
-            cc.advance();
-        }
+        cc.advance_n(5);
         let hash2 = cc.hashed_bytes();
         assert_eq!(hash1.bytes, hash2.bytes, "backing bytes not equal");
         assert_eq!(hash1.hash, hash2.hash, "hashes not equal");

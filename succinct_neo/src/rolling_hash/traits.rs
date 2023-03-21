@@ -16,10 +16,7 @@ use super::HashedBytes;
 /// let hash_0 = rk.hashed_bytes();
 ///
 /// // Move forward 4 steps
-/// rk.advance();
-/// rk.advance();
-/// rk.advance();
-/// rk.advance();
+/// rk.advance_n(4);
 ///
 /// // Get the hashed bytes at the current position (4)
 /// let hash_4 = rk.hashed_bytes();
@@ -72,6 +69,7 @@ pub trait RollingHash<'a> {
     /// # Arguments
     ///
     /// * `n` - The number of times to advance.
+    #[inline]
     fn advance_n(&mut self, n: usize) -> u64 {
         let mut hash = self.hash();
         for _ in 0..n {
