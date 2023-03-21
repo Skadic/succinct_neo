@@ -1,14 +1,18 @@
-use rand::{thread_rng, Rng};
+use rand::{distributions::Uniform, prelude::Distribution, thread_rng, Rng};
 
 use super::{HashedBytes, RollingHash};
+
+const BASE: u64 = 257;
+const PRIME: u64 = 8589935681;
 
 /// Rabin Karp rolling hashes for strings (or byte arrays)
 pub struct RabinKarp<'a> {
     s: &'a [u8],
     offset: usize,
     window_size: usize,
-    poly: u64,
-    pow: u64,
+    /// When we need to remove a char from the hash we would actually need to multiply it by BASE^k and
+    /// then subtract it. However since our hash is in the finite field GF(p),
+    rem: u64,
     hash: u64,
     done: bool,
 }
@@ -20,60 +24,28 @@ impl<'a> RabinKarp<'a> {
             s.len() >= window_size,
             "string cannot be shorter than window size"
         );
-        let poly = find_irreducible_polynomial61();
-        let mut pow = 1;
+        let mut rem = 1;
 
         let mut hash = 0;
-        for i in 0..window_size - 1 {
-            let c = s[i] as u64;
-            hash <<= 1;
+        for c in s[0..window_size].iter().map(|&c| c as u64) {
+            hash *= BASE;
             hash += c;
-            hash %= poly;
-            //hash = ((hash + c) << 1) % poly;
-            if i > 0 {
-                pow = (pow << 1) % poly;
-            }
+            hash %= PRIME;
         }
-        hash += s[window_size - 1] as u64;
-        hash %= poly;
+
+        for _ in 0..window_size - 1 {
+            rem = (rem * BASE) % PRIME;
+        }
 
         Self {
             s,
             offset: 0,
             window_size,
             hash,
-            poly,
-            pow,
+            rem,
             done: false,
         }
     }
-}
-
-/// Find an irreducible polynomial of degree 61.
-/// We use 61 since it is the largest prime smaller than 64.
-fn find_irreducible_polynomial61() -> u64 {
-    const MASK_61: u64 = (1 << 62) - 1;
-    let mut rng = thread_rng();
-    let mut gen = rng.gen::<u64>() & MASK_61;
-
-    while !check_irreducible(gen) {
-        gen = rng.gen::<u64>() & MASK_61;
-    }
-
-    gen
-}
-
-/// Check whether the given degree-61 binary polynomial complement is irreducible.
-///
-/// # Arguments
-///
-/// * `poly` - A degree-61 binary polynomial. The 61 least significant bits of the given number
-/// make the coefficients.
-const fn check_irreducible(poly: u64) -> bool {
-    const MASK_61: u64 = (1 << 62) - 1;
-    let complement = !poly & MASK_61;
-    let gcd = gcd::binary_u64(poly, complement);
-    gcd == 1
 }
 
 impl<'a> RollingHash<'a> for RabinKarp<'a> {
@@ -88,21 +60,15 @@ impl<'a> RollingHash<'a> for RabinKarp<'a> {
             self.offset = self.offset.min(self.s.len() - self.window_size);
             return self.hash;
         }
-        //self.hash += self.poly;
-        //self.hash -= v;
-        //self.hash <<= 1;
-        //self.hash += self.s[self.offset + self.window_size] as u64;
-        //self.hash %= self.poly;
-        let c1 = self.s[self.offset];
-        let c2 = self.s[self.offset + self.window_size];
-        self.hash += self.poly;
-        self.hash <<= 1;
-        self.hash %= self.poly;
-        self.hash -= self.pow * c1 as u64;
-        self.hash += c2 as u64;
-        self.hash %= self.poly;
+        let c_out = self.s[self.offset] as u64;
+        let c_in = self.s[self.offset + self.window_size] as u64;
 
-        //self.hash = ((self.hash << 1) % self.poly + c2 as u64 - (self.pow * c1 as u64) % self.poly + self.poly) % self.poly;
+        self.hash += PRIME;
+        self.hash -= (self.rem * c_out) % PRIME;
+        //self.hash %= PRIME;
+        self.hash *= BASE;
+        self.hash += c_in;
+        self.hash %= PRIME;
 
         self.offset += 1;
         self.hash()
@@ -197,11 +163,11 @@ mod test {
         for i in 0..string_source.len() - 5 {
             rk.advance();
             let hash = rk.hashed_bytes();
-            assert_eq!(prev_hash.hash, hash.hash, "hashes not equal at {i}");
             assert_eq!(
                 prev_hash.bytes, hash.bytes,
                 "backing bytes not equal at {i}"
             );
+            assert_eq!(prev_hash.hash, hash.hash, "hashes not equal at {i}");
             assert_eq!(prev_hash, hash, "hash objects not equal at {i}");
             prev_hash = hash;
         }
@@ -213,15 +179,15 @@ mod test {
         let mut rk = RabinKarp::new(&string_source, 5);
         let mut prev_hash2 = rk.hashed_bytes();
         rk.advance();
-        let mut prev_hash1;
-        for i in 0..string_source.len() - 5 {
+        let mut prev_hash1 = rk.hashed_bytes();
+        for i in 2..string_source.len() - 5 {
             rk.advance();
-            let hash = rk.hashed_bytes();
-            assert_eq!(prev_hash2.hash, hash.hash, "hashes not equal at {i}");
+            let hash = dbg!(i, rk.hashed_bytes()).1;
             assert_eq!(prev_hash2.bytes, hash.bytes, "bytes not equal at {i}");
+            assert_eq!(prev_hash2.hash, hash.hash, "hashes not equal at {i}");
             assert_eq!(prev_hash2, hash, "hash objects not equal at {i}");
-            prev_hash1 = hash;
             prev_hash2 = prev_hash1;
+            prev_hash1 = hash;
         }
     }
 
