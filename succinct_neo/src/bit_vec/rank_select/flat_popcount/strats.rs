@@ -182,7 +182,7 @@ mod test {
     ))]
     mod simd {
         use super::*;
-        use crate::rank_select::flat_popcount::strats::simd::SimdSearch;
+        use crate::bit_vec::rank_select::flat_popcount::strats::simd::SimdSearch;
         strat_tests! {
             SimdSearch, simd_search
         }

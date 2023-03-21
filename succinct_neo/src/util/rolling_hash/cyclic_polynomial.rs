@@ -29,7 +29,7 @@ impl<'a> CyclicPolynomial<'a> {
         let mut hash = 0;
 
         for i in 0..window_size {
-            hash ^= char_table[s[i] as usize].rotate_left(i as u32);
+            hash ^= char_table[s[i] as usize].rotate_left((window_size - i - 1) as u32);
         }
 
         Self {
@@ -72,15 +72,17 @@ impl<'a> RollingHash<'a> for CyclicPolynomial<'a> {
     }
 
     fn advance(&mut self) -> u64 {
-        if self.offset + self.window_size >= self.s.len() || self.done {
+        let outpos = self.offset;
+        let inpos = self.offset + self.window_size;
+        if inpos >= self.s.len() || self.done {
             self.done = true;
             self.offset = self.offset.min(self.s.len() - self.window_size);
             return self.hash;
         }
 
         self.hash = self.hash.rotate_left(1)
-            ^ self.char_table[self.s[self.offset] as usize].rotate_left(self.window_size as u32)
-            ^ self.char_table[self.s[self.offset + self.window_size] as usize];
+            ^ self.char_table[self.s[outpos] as usize].rotate_left(self.window_size as u32)
+            ^ self.char_table[self.s[inpos] as usize];
 
         self.offset += 1;
         self.hash
@@ -110,16 +112,30 @@ impl<'a> Iterator for CyclicPolynomial<'a> {
 
 #[cfg(test)]
 mod test {
-    use std::collections::HashMap;
+    use itertools::Itertools;
 
-    use crate::util::rolling_hash::HashedBytes;
+    use crate::util::rolling_hash::{HashedByteMap, RollingHash};
 
     use super::CyclicPolynomial;
 
     #[test]
-    fn hash_test() {
+    fn hash_eq_test() {
+        let string_source = "hellohello";
+        let mut cc = CyclicPolynomial::new(&string_source, 5);
+        let hash1 = cc.hashed_bytes();
+        for _ in 0..5 {
+            cc.advance();
+        }
+        let hash2 = cc.hashed_bytes();
+        assert_eq!(hash1.bytes, hash2.bytes, "backing bytes not equal");
+        assert_eq!(hash1.hash, hash2.hash, "hashes not equal");
+        assert_eq!(hash1, hash2, "hash objects not equal");
+    }
+
+    #[test]
+    fn short_hash_test() {
         let string_source = "helloyouthere";
-        let mut map = HashMap::<HashedBytes<'static>, usize>::new();
+        let mut map = HashedByteMap::<'static, usize>::default();
         let cc = CyclicPolynomial::new(&string_source, 5);
         let seed = cc.seed();
 
@@ -132,6 +148,34 @@ mod test {
         let cc = CyclicPolynomial::with_seed(&string_source, 5, seed);
         for (i, s) in cc.enumerate() {
             assert_eq!(Some(&i), map.get(&s));
+        }
+    }
+
+    #[test]
+    fn long_hash_test() {
+        let s = "helloyouthere";
+        let mut string_source = String::new();
+        let repetitions = 100;
+        let window_size = 200;
+        for _ in 0..repetitions {
+            string_source.push_str(s);
+        }
+
+        let num_distinct = string_source.as_bytes().windows(window_size).unique().count();
+
+        let mut map = HashedByteMap::<usize>::default();
+        let cc = CyclicPolynomial::new(&string_source, window_size);
+        let seed = cc.seed();
+
+        for (i, s) in cc.enumerate() {
+            map.insert(s, i);
+        }
+
+        assert_eq!(num_distinct, map.len(), "incorrect number of elements in map");
+
+        let cc = CyclicPolynomial::with_seed(&string_source, window_size, seed);
+        for s in cc {
+            assert!(map.contains_key(&s), "hashed value not found");
         }
     }
 }

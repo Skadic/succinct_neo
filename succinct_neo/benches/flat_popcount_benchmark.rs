@@ -120,7 +120,7 @@ fn bench_select(c: &mut Criterion) {
         target_feature = "sse4.1"
     ))]
     {
-        use succinct_neo::rank_select::flat_popcount::SimdSearch;
+        use succinct_neo::bit_vec::rank_select::flat_popcount::SimdSearch;
         let rs_simd = FlatPopcount::<SimdSearch>::new(&bv);
         group.bench_function("select_1_simd", |b| {
             b.iter_batched(

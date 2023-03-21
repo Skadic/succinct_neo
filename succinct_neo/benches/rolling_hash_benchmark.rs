@@ -96,7 +96,7 @@ fn bench_rolling_hash(c: &mut Criterion) {
             || {
                 (
                     HashedByteSet::default(),
-                    RabinKarp::new(&s, WINDOW_SIZE, 7919),
+                    RabinKarp::new(&s, WINDOW_SIZE),
                 )
             },
             |(map, rk)| {
