@@ -3,12 +3,12 @@ use std::hint::black_box;
 use criterion::{criterion_group, criterion_main, Criterion};
 use rand::{thread_rng, Rng};
 
-use succinct_neo::{
-    bit_vec::BitVec,
+use succinct_neo::bit_vec::{
     rank_select::{
         flat_popcount::{BinarySearch, LinearSearch},
-        FlatPopcount, RankSupport, SelectSupport,
+        BitRankSupport, BitSelectSupport, FlatPopcount,
     },
+    BitVec,
 };
 
 #[allow(non_upper_case_globals)]
