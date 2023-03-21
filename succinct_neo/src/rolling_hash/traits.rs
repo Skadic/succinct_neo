@@ -1,6 +1,6 @@
 use super::HashedBytes;
 
-/// A trait for rolling hash functions which allow advancing through the text they hash. 
+/// A trait for rolling hash functions which allow advancing through the text they hash.
 ///
 /// # Examples
 ///
@@ -24,7 +24,7 @@ use super::HashedBytes;
 /// // Get the hashed bytes at the current position (4)
 /// let hash_4 = rk.hashed_bytes();
 ///
-/// // The hashes at indices 0 and 4 should be the same! 
+/// // The hashes at indices 0 and 4 should be the same!
 /// assert_eq!(hash_0, hash_4);
 /// ```
 pub trait RollingHash<'a> {
@@ -65,8 +65,22 @@ pub trait RollingHash<'a> {
     /// ```
     fn advance(&mut self) -> u64;
 
+    /// Advance the hasher n times. This is equivalent to calling [`RollingHash::advance`] n times
+    /// and returning the result of the last call of advance.
+    /// If n is zero, this just returns the current hash value.
+    ///
+    /// # Arguments
+    ///
+    /// * `n` - The number of times to advance.
+    fn advance_n(&mut self, n: usize) -> u64 {
+        let mut hash = self.hash();
+        for _ in 0..n {
+            hash = self.advance();
+        }
+        hash
+    }
 
-    /// Returns the current hash value augmented with the slice of the text that was hashed. 
+    /// Returns the current hash value augmented with the slice of the text that was hashed.
     ///
     /// # Examples
     ///
@@ -86,4 +100,25 @@ pub trait RollingHash<'a> {
     /// assert_eq!(hash.hash(), rk.hash());
     /// ```
     fn hashed_bytes(&self) -> HashedBytes<'a>;
+}
+
+#[cfg(test)]
+mod test {
+    use crate::rolling_hash::{RabinKarp, RollingHash};
+
+    #[test]
+    fn test_advance_n() {
+        let s = "hashhash";
+
+        // Create a new Rabin-Karp hasher with a window size of 4.
+        let mut rk1 = RabinKarp::new(s, 4);
+        rk1.advance();
+        rk1.advance();
+        rk1.advance();
+
+        let mut rk2 = RabinKarp::new(s, 4);
+        rk2.advance_n(3);
+        
+        assert_eq!(rk1.hashed_bytes(), rk2.hashed_bytes(), "advance different to advance_n");
+    }
 }
