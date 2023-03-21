@@ -1,11 +1,10 @@
-use rand::{distributions::Uniform, prelude::Distribution, thread_rng, Rng};
-
-use super::{HashedBytes, RollingHash};
+use super::{RollingHash, HashedBytes};
 
 const BASE: u64 = 257;
 const PRIME: u64 = 8589935681;
 
 /// Rabin Karp rolling hashes for strings (or byte arrays)
+///
 pub struct RabinKarp<'a> {
     s: &'a [u8],
     offset: usize,
@@ -18,7 +17,37 @@ pub struct RabinKarp<'a> {
 }
 
 impl<'a> RabinKarp<'a> {
-    pub fn new<T: AsRef<[u8]>>(s: &'a T, window_size: usize) -> Self {
+    /// Creates a new instance of a Rabin-Karp rolling hasher.
+    ///
+    /// # Arguments
+    ///
+    /// * `s` - A reference to the string to iterate over.
+    /// * `window_size` - The size of the window to be hashed at a time.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use succinct_neo::rolling_hash::{RabinKarp, RollingHash};
+    ///
+    /// let s = "hashhash";
+    ///
+    /// // Create a new Rabin-Karp hasher with a window size of 4;
+    /// let mut rk = RabinKarp::new(s, 4);
+    ///
+    /// let hash_0 = rk.hashed_bytes();
+    ///
+    /// // Move forward 4 steps
+    /// rk.advance();
+    /// rk.advance();
+    /// rk.advance();
+    /// rk.advance();
+    ///
+    /// let hash_4 = rk.hashed_bytes();
+    ///
+    /// // The hashes at indices 0 and 4 should be the same! 
+    /// assert_eq!(hash_0, hash_4);
+    /// ```
+    pub fn new<T: AsRef<[u8]> + ?Sized>(s: &'a T, window_size: usize) -> Self {
         let s = s.as_ref();
         assert!(
             s.len() >= window_size,
@@ -102,7 +131,7 @@ mod test {
 
     use itertools::Itertools;
 
-    use crate::util::rolling_hash::{HashedByteMap, HashedBytes, RollingHash};
+    use crate::rolling_hash::{HashedByteMap, HashedBytes, RollingHash};
 
     use super::RabinKarp;
 

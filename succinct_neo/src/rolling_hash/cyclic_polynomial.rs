@@ -114,7 +114,7 @@ impl<'a> Iterator for CyclicPolynomial<'a> {
 mod test {
     use itertools::Itertools;
 
-    use crate::util::rolling_hash::{HashedByteMap, RollingHash};
+    use crate::rolling_hash::{HashedByteMap, RollingHash};
 
     use super::CyclicPolynomial;
 
