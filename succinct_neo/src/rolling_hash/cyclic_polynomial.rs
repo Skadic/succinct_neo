@@ -170,17 +170,12 @@ impl<'a> RollingHash<'a> for CyclicPolynomial<'a> {
     }
 
     fn advance(&mut self) -> u64 {
-        let outpos = self.offset;
-        let inpos = self.offset + self.window_size;
-        if inpos >= self.s.len() || self.done {
-            self.done = true;
-            self.offset = self.offset.min(self.s.len() - self.window_size);
-            return self.hash;
-        }
+        let outchar = self.s.get(self.offset).copied().unwrap_or_default() as usize;
+        let inchar = self.s.get(self.offset + self.window_size).copied().unwrap_or_default() as usize;
 
         self.hash = self.hash.rotate_left(1)
-            ^ self.char_table[self.s[outpos] as usize].rotate_left(self.window_size as u32)
-            ^ self.char_table[self.s[inpos] as usize];
+            ^ self.char_table[outchar].rotate_left(self.window_size as u32)
+            ^ self.char_table[inchar];
 
         self.offset += 1;
         self.hash
@@ -199,7 +194,7 @@ impl<'a> Iterator for CyclicPolynomial<'a> {
     type Item = HashedBytes<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.done {
+        if self.offset + self.window_size > self.s.len() {
             return None;
         }
         let hb = self.hashed_bytes();

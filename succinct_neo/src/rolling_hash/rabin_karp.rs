@@ -88,19 +88,18 @@ impl<'a> RollingHash<'a> for RabinKarp<'a> {
     }
 
     fn advance(&mut self) -> u64 {
-        if self.offset + self.window_size >= self.s.len() || self.done {
-            self.done = true;
-            self.offset = self.offset.min(self.s.len() - self.window_size);
-            return self.hash;
-        }
-        let c_out = self.s[self.offset] as u64;
-        let c_in = self.s[self.offset + self.window_size] as u64;
+        let outchar = self.s.get(self.offset).copied().unwrap_or_default() as u64;
+        let inchar = self
+            .s
+            .get(self.offset + self.window_size)
+            .copied()
+            .unwrap_or_default() as u64;
 
         self.hash += PRIME;
-        self.hash -= (self.rem * c_out) % PRIME;
+        self.hash -= (self.rem * outchar) % PRIME;
         //self.hash %= PRIME;
         self.hash *= BASE;
-        self.hash += c_in;
+        self.hash += inchar;
         self.hash %= PRIME;
 
         self.offset += 1;
@@ -110,7 +109,7 @@ impl<'a> RollingHash<'a> for RabinKarp<'a> {
     #[inline]
     fn hashed_bytes(&self) -> HashedBytes<'a> {
         HashedBytes::new(
-            &self.s[self.offset..self.offset + self.window_size],
+            &self.s[self.offset..self.s.len().min(self.offset + self.window_size)],
             self.hash(),
         )
     }
@@ -120,7 +119,7 @@ impl<'a> Iterator for RabinKarp<'a> {
     type Item = HashedBytes<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.done {
+        if self.offset + self.window_size > self.s.len() {
             return None;
         }
         let hb = self.hashed_bytes();
