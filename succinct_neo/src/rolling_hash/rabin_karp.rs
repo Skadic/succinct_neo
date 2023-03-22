@@ -50,15 +50,12 @@ impl<'a> RabinKarp<'a> {
     /// * `window_size` - The size of the window to be hashed at a time.
     pub fn new<T: AsRef<[u8]> + ?Sized>(s: &'a T, window_size: usize) -> Self {
         let s = s.as_ref();
-        debug_assert!(
-            s.len() >= window_size,
-            "string cannot be shorter than window size"
-        );
         debug_assert!(window_size >= 1, "window size must be at least 1");
 
         // Create the initial hash value
         let mut hash = 0;
-        for c in s[0..window_size].iter().map(|&c| c as u64) {
+        for i in 0..window_size {
+            let c = s.get(i).copied().unwrap_or_default() as u64;
             hash *= BASE;
             hash += c;
             hash %= PRIME;
