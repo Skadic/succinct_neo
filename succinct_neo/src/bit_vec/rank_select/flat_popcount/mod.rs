@@ -332,6 +332,17 @@ impl<Strat: SelectStrategy> BitSelectSupport<true> for FlatPopcount<'_, Strat> {
     }
 }
 
+impl<'a> BitGet for FlatPopcount<'a> {
+    #[inline]
+    unsafe fn get_bit_unchecked(&self, index: usize) -> bool {
+        self.backing.get_bit_unchecked(index)
+    }
+
+    #[inline]
+    fn get_bit(&self, index: usize) -> bool {
+        self.backing.get_bit(index)
+    }
+}
 #[cfg(test)]
 mod test {
     use super::{FlatPopcount, L2_INDEX_MASK};
