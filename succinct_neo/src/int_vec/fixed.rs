@@ -164,6 +164,11 @@ impl<const WIDTH: usize> FixedIntVec<WIDTH> {
     const fn mask(&self) -> usize {
         (1 << WIDTH) - 1
     }
+
+    /// Consumes this int vector and returns the backing [`Vec`].
+    pub fn into_inner(self) -> Vec<usize> {
+        self.data
+    }
 }
 
 impl<const WIDTH: usize> IntVector for FixedIntVec<WIDTH> {

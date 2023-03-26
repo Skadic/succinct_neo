@@ -267,6 +267,11 @@ impl DynamicIntVec {
             }
         }
     }
+
+    /// Consumes this int vector and returns the backing [`Vec`].
+    pub fn into_inner(self) -> Vec<usize> {
+        self.data
+    }
 }
 
 impl IntVector for DynamicIntVec {
