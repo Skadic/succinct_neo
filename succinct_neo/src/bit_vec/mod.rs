@@ -4,16 +4,17 @@ use std::ops::{Deref, DerefMut};
 use itertools::Itertools;
 
 pub use crate::bit_vec::slice::BitSlice;
+use crate::int_vec::{DynamicIntVec, FixedIntVec, IntVector};
 pub use traits::*;
 
 use self::slice::Iter;
 
 /// Trait implementations for the backing type of BitVec
 mod backing;
+pub mod rank_select;
 /// Bit slices offering views into types that offer bit access
 pub mod slice;
 pub mod traits;
-pub mod rank_select;
 
 /// The word size on this machine in bits
 const WORD_SIZE: usize = 64;
@@ -171,6 +172,54 @@ impl AsMut<BitSlice<Vec<usize>>> for BitVec {
     }
 }
 
+impl FromIterator<bool> for BitVec {
+    fn from_iter<T: IntoIterator<Item = bool>>(iter: T) -> Self {
+        const BLOCK_SIZE: usize = std::mem::size_of::<usize>() * 8;
+        let iter = iter.into_iter();
+        match iter.size_hint() {
+            (_, Some(max)) => {
+                let mut bv = BitVec::new(max);
+                for (i, b) in iter.enumerate() {
+                    bv.set(i, b);
+                }
+                bv
+            }
+            (min, _) => {
+                let mut v = Vec::with_capacity(min / BLOCK_SIZE);
+                let mut iter = iter.enumerate();
+
+                let mut cur = match iter.next() {
+                    Some((_, b)) => {
+                        let mut t = 0usize;
+                        t.set_bit(0, b);
+                        t
+                    }
+                    None => return BitVec::new(0),
+                };
+
+                let mut count = 1;
+                for (i, b) in iter {
+                    let i = i % BLOCK_SIZE;
+                    cur.set_bit(i, b);
+                    count += 1;
+                    if i == BLOCK_SIZE - 1 {
+                        v.push(cur);
+                        cur = 0;
+                    }
+                }
+                if count % BLOCK_SIZE != 0 {
+                    v.push(cur);
+                }
+
+                BitVec {
+                    data: BitSlice::new(v, 0, count),
+                    size: count,
+                }
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::bit_vec::slice::BitSlice;
@@ -272,6 +321,32 @@ mod test {
         for (i, v) in iter.enumerate() {
             assert_eq!(i % 3 != 0, v);
         }
+    }
+
+    #[test]
+    fn from_iter_test() {
+        let mut temp = false;
+        let v = std::iter::repeat_with(|| {
+            temp = !temp;
+            temp
+        })
+        .take(300)
+        .collect::<Vec<_>>();
+        let bv = v.iter().copied().collect::<BitVec>();
+
+        assert_eq!(300, bv.len(), "incorrect len");
+
+        for (i, b) in bv.iter().enumerate() {
+            assert_eq!(v[i], b, "incorrect value at index {i}");
+        }
+    }
+
+    #[test]
+    fn from_iter_empty_test() {
+        let v = vec![];
+        let bv = v.iter().copied().collect::<BitVec>();
+
+        assert_eq!(0, bv.len(), "incorrect len");
     }
 
     #[test]
