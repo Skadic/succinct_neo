@@ -1,7 +1,7 @@
 use crate::int_vec::Iter;
 use crate::int_vec::{num_required_blocks, IntVector};
+use std::fmt::Debug;
 
-#[derive(Debug)]
 pub struct FixedIntVec<const INT_WIDTH: usize> {
     data: Vec<usize>,
     capacity: usize,
@@ -9,7 +9,6 @@ pub struct FixedIntVec<const INT_WIDTH: usize> {
 }
 
 impl<const WIDTH: usize> FixedIntVec<WIDTH> {
-
     /// Creates an integer vector with a given bit width and a default capacity of 8.
     ///
     /// # Arguments
@@ -172,7 +171,6 @@ impl<const WIDTH: usize> FixedIntVec<WIDTH> {
 }
 
 impl<const WIDTH: usize> IntVector for FixedIntVec<WIDTH> {
-
     #[inline]
     fn capacity(&self) -> usize {
         self.capacity
@@ -256,10 +254,7 @@ impl<const WIDTH: usize> IntVector for FixedIntVec<WIDTH> {
     }
 
     fn push(&mut self, v: usize) {
-        debug_assert!(
-            v < (1 << WIDTH),
-            "value too large for {WIDTH}-bit integer"
-        );
+        debug_assert!(v < (1 << WIDTH), "value too large for {WIDTH}-bit integer");
 
         let offset = self.current_offset();
         let mask = self.mask();
@@ -299,9 +294,26 @@ impl<const WIDTH: usize> Default for FixedIntVec<WIDTH> {
     }
 }
 
+impl<const WIDTH: usize> Debug for FixedIntVec<WIDTH> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{{").and_then(|_| {
+            let mut iter = self.iter().peekable();
+            while let Some(v) = iter.next() {
+                write!(f, "{v}")?;
+                if iter.peek().is_some() {
+                    write!(f, ", ")?;
+                }
+            }
+            Ok(())
+        }).and_then(|_| {
+            write!(f, "}}")
+        })
+    }
+}
+
 #[cfg(test)]
 mod test {
-    use crate::int_vec::{IntVector, fixed::FixedIntVec};
+    use crate::int_vec::{fixed::FixedIntVec, IntVector};
 
     #[test]
     fn basics_test() {

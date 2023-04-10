@@ -1,7 +1,8 @@
 use crate::int_vec::Iter;
 use crate::int_vec::{num_required_blocks, IntVector};
+use std::fmt::Debug;
 
-#[derive(Debug)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct DynamicIntVec {
     data: Vec<usize>,
     capacity: usize,
@@ -352,6 +353,22 @@ impl IntVector for DynamicIntVec {
     }
 }
 
+impl Debug for DynamicIntVec {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{{").and_then(|_| {
+            let mut iter = self.iter().peekable();
+            while let Some(v) = iter.next() {
+                write!(f, "{v}")?;
+                if iter.peek().is_some() {
+                    write!(f, ", ")?;
+                }
+            }
+            Ok(())
+        }).and_then(|_| {
+            write!(f, "}}")
+        })
+    }
+}
 #[cfg(test)]
 mod test {
     use crate::int_vec::dynamic::DynamicIntVec;
