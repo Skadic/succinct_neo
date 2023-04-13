@@ -5,6 +5,8 @@ use crate::{
     rolling_hash::{HashedByteMap, RabinKarp, RollingHash},
 };
 
+mod intermediate;
+
 #[derive(Debug)]
 #[allow(unused)]
 struct BlockTree {
@@ -18,6 +20,7 @@ struct BlockTree {
 }
 
 impl BlockTree {
+
     pub fn new(input: impl AsRef<[u8]>, arity: usize, leaf_length: usize) -> Self {
         assert!(arity > 1, "arity must be greater than 1");
         assert!(leaf_length > 0, "leaf length must be greater than 0");
@@ -144,6 +147,7 @@ impl BlockTree {
 
         pair_marks
     }
+
 }
 #[cfg(test)]
 mod test {
