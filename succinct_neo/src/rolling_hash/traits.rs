@@ -116,7 +116,11 @@ mod test {
 
         let mut rk2 = RabinKarp::new(s, 4);
         rk2.advance_n(3);
-        
-        assert_eq!(rk1.hashed_bytes(), rk2.hashed_bytes(), "advance different to advance_n");
+
+        assert_eq!(
+            rk1.hashed_bytes(),
+            rk2.hashed_bytes(),
+            "advance different to advance_n"
+        );
     }
 }

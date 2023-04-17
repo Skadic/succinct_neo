@@ -32,12 +32,12 @@ impl Block {
             block_type: BlockType::Internal(Vec::new()),
         }
     }
-    
+
     #[inline]
     pub fn replace(&mut self, source: BlockId, offset: usize) {
         self.block_type = BlockType::Back(source, offset);
     }
-    
+
     #[inline]
     pub fn set_next(&mut self, next: BlockId) {
         self.next = Some(next);
@@ -61,7 +61,7 @@ impl Block {
     pub fn add_child(&mut self, block: BlockId) {
         match self.block_type {
             BlockType::Internal(ref mut children) => children.push(block),
-            _ => panic!("attempted to add child to back block")
+            _ => panic!("attempted to add child to back block"),
         }
     }
 

@@ -171,7 +171,11 @@ impl<'a> RollingHash<'a> for CyclicPolynomial<'a> {
 
     fn advance(&mut self) -> u64 {
         let outchar = self.s.get(self.offset).copied().unwrap_or_default() as usize;
-        let inchar = self.s.get(self.offset + self.window_size).copied().unwrap_or_default() as usize;
+        let inchar = self
+            .s
+            .get(self.offset + self.window_size)
+            .copied()
+            .unwrap_or_default() as usize;
 
         self.hash = self.hash.rotate_left(1)
             ^ self.char_table[outchar].rotate_left(self.window_size as u32)

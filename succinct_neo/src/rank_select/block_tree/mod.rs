@@ -1,4 +1,4 @@
-use std::collections::{hash_set, hash_map::Entry};
+use std::collections::hash_map::Entry;
 
 use crate::{
     bit_vec::BitVec,
@@ -20,7 +20,6 @@ struct BlockTree {
 }
 
 impl BlockTree {
-
     pub fn new(input: impl AsRef<[u8]>, arity: usize, leaf_length: usize) -> Self {
         assert!(arity > 1, "arity must be greater than 1");
         assert!(leaf_length > 0, "leaf length must be greater than 0");
@@ -66,10 +65,8 @@ impl BlockTree {
 
     fn process_level(&mut self, s: &[u8], level: usize) {
         let marked_pairs = self.scan_block_pairs(s, level);
-
     }
 
-    
     /// Scan through the blocks pairwise in order to identify leftmost occurrences of block pairs.
     ///
     /// # Arguments
@@ -102,7 +99,9 @@ impl BlockTree {
             let hashed = rk.hashed_bytes();
             match map.entry(hashed) {
                 Entry::Occupied(_) => pair_marks.set(i, false),
-                Entry::Vacant(e) => { e.insert(hashed); }
+                Entry::Vacant(e) => {
+                    e.insert(hashed);
+                }
             };
             rk.advance_n(block_size);
         }
@@ -137,17 +136,16 @@ impl BlockTree {
             rk.advance();
         }
 
-        // calculate the marking of single blocks from 
+        // calculate the marking of single blocks from
         let mut prev = true;
         for i in 1..num_blocks - 1 {
             let marked = prev || pair_marks.get(i);
             prev = pair_marks.get(i);
-            pair_marks.set(i-1, marked);
+            pair_marks.set(i - 1, marked);
         }
 
         pair_marks
     }
-
 }
 #[cfg(test)]
 mod test {

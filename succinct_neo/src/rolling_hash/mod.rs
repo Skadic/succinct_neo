@@ -1,6 +1,7 @@
-use std::collections::{HashSet, HashMap};
+use multimap::MultiMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
-use std::hash::{Hash, Hasher, BuildHasherDefault};
+use std::hash::{BuildHasherDefault, Hash, Hasher};
 
 mod cyclic_polynomial;
 mod rabin_karp;
@@ -10,15 +11,19 @@ pub use cyclic_polynomial::CyclicPolynomial;
 pub use rabin_karp::RabinKarp;
 pub use traits::*;
 
+pub type HashedByteMap<'a, V = HashedBytes<'a>> =
+    HashMap<HashedBytes<'a>, V, HashedBytesBuildHasher>;
 pub type HashedByteSet<'a> = HashSet<HashedBytes<'a>, HashedBytesBuildHasher>;
-pub type HashedByteMap<'a, V=HashedBytes<'a>> = HashMap<HashedBytes<'a>, V, HashedBytesBuildHasher>;
+pub type HashedByteMultiMap<'a, V = HashedBytes<'a>> =
+    MultiMap<HashedBytes<'a>, V, HashedBytesBuildHasher>;
+pub type HashedByteMultiSet<'a> = HashedByteMultiMap<'a, ()>;
 
 /// A slice of a string augmented with its hash value.
 /// Get instances of this through a call to [`RollingHash::hashed_bytes`].
-/// This is mostly used in as a key for [`HashSet`] or [`HashMap`] using a [`HashedBytesBuildHasher`], 
-/// allowing the set or map to directly use the stored `hash` field as a hash value. 
+/// This is mostly used in as a key for [`HashSet`] or [`HashMap`] using a [`HashedBytesBuildHasher`],
+/// allowing the set or map to directly use the stored `hash` field as a hash value.
 ///
-/// # Examples 
+/// # Examples
 ///
 /// ```
 /// use succinct_neo::rolling_hash::{HashedBytes, HashedByteSet, RabinKarp, RollingHash};
