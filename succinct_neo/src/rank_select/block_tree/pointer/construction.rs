@@ -1,14 +1,14 @@
 use crate::{
     bit_vec::BitVec,
     int_vec::{FixedIntVec, IntVector},
-    rank_select::block_tree::intermediate::{
+    rank_select::block_tree::pointer::{
         block::{Block, BlockId},
-        IntermediateBlockTree, Level,
+        PointerBlockTree, Level,
     },
     rolling_hash::{HashedByteMultiMap, HashedBytes, RabinKarp, RollingHash},
 };
 
-impl<'a> IntermediateBlockTree<'a> {
+impl<'a> PointerBlockTree<'a> {
     /// Calculates the sizes each block should have for each level. Index 0 is the shallowest level (only containing the root).
     ///
     /// # Arguments
@@ -268,7 +268,7 @@ impl<'a> IntermediateBlockTree<'a> {
 
 #[cfg(test)]
 mod test {
-    use super::IntermediateBlockTree;
+    use super::PointerBlockTree;
 
     #[test]
     fn block_size_test() {
@@ -279,6 +279,6 @@ mod test {
             .chain("abcdeg".chars())
             .collect::<String>();
         println!("input len: {}", s.len());
-        let bt = IntermediateBlockTree::new(s.as_bytes(), 3, 2);
+        let bt = PointerBlockTree::new(s.as_bytes(), 3, 2);
     }
 }

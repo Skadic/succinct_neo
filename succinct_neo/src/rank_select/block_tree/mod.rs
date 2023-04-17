@@ -5,7 +5,9 @@ use crate::{
     rolling_hash::{HashedByteMap, RabinKarp, RollingHash},
 };
 
-mod intermediate;
+mod pointer;
+
+pub use pointer::PointerBlockTree;
 
 #[derive(Debug)]
 #[allow(unused)]
