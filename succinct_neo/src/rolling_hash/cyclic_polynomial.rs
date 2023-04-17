@@ -38,8 +38,6 @@ pub struct CyclicPolynomial<'a> {
     /// Seed for the random generation of the char table.
     /// This can be used if you want to create another hasher with the same table.
     seed: u64,
-    // Whether we're at the end of the string.
-    done: bool,
 }
 
 impl<'a> CyclicPolynomial<'a> {
@@ -105,7 +103,6 @@ impl<'a> CyclicPolynomial<'a> {
             window_size,
             hash,
             seed,
-            done: false,
         }
     }
 

@@ -37,8 +37,6 @@ pub struct RabinKarp<'a> {
     rem: u64,
     /// The current hash value
     hash: u64,
-    /// Whether we're at the end of the string
-    done: bool,
 }
 
 impl<'a> RabinKarp<'a> {
@@ -73,7 +71,6 @@ impl<'a> RabinKarp<'a> {
             window_size,
             hash,
             rem,
-            done: false,
         }
     }
 }
