@@ -355,18 +355,18 @@ impl IntVector for DynamicIntVec {
 
 impl Debug for DynamicIntVec {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{{").and_then(|_| {
-            let mut iter = self.iter().peekable();
-            while let Some(v) = iter.next() {
-                write!(f, "{v}")?;
-                if iter.peek().is_some() {
-                    write!(f, ", ")?;
+        write!(f, "{{")
+            .and_then(|_| {
+                let mut iter = self.iter().peekable();
+                while let Some(v) = iter.next() {
+                    write!(f, "{v}")?;
+                    if iter.peek().is_some() {
+                        write!(f, ", ")?;
+                    }
                 }
-            }
-            Ok(())
-        }).and_then(|_| {
-            write!(f, "}}")
-        })
+                Ok(())
+            })
+            .and_then(|_| write!(f, "}}"))
     }
 }
 #[cfg(test)]

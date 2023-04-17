@@ -1,4 +1,4 @@
-/// Trait adding support for rank queries over bit vectors or similar data structures. 
+/// Trait adding support for rank queries over bit vectors or similar data structures.
 pub trait BitRankSupport {
     /// Calculates the number of zeroes or ones up to and not including a given index.
     ///
@@ -89,7 +89,7 @@ pub trait BitRankSupport {
     }
 }
 
-/// Trait adding support for rank queries over bit vectors or similar data structures. 
+/// Trait adding support for rank queries over bit vectors or similar data structures.
 /// The `TARGET` parameter determines, whether this data structure supports select for `1` bits
 /// (`TARGET` is `true`) or `0` bits (`TARGET` is `false`).
 pub trait BitSelectSupport<const TARGET: bool> {

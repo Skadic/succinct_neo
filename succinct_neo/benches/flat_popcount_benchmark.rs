@@ -4,11 +4,11 @@ use criterion::{criterion_group, criterion_main, Criterion};
 use rand::{thread_rng, Rng};
 
 use succinct_neo::{
-    bit_vec::BitVec,
     bit_vec::rank_select::{
         flat_popcount::{BinarySearch, LinearSearch},
-        FlatPopcount, BitRankSupport, BitSelectSupport,
+        BitRankSupport, BitSelectSupport, FlatPopcount,
     },
+    bit_vec::BitVec,
 };
 
 #[allow(non_upper_case_globals)]

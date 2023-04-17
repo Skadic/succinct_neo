@@ -6,7 +6,9 @@ use criterion::{
     BenchmarkId, Criterion,
 };
 use rand::{thread_rng, Rng};
-use succinct_neo::rolling_hash::{CyclicPolynomial, HashedByteSet, HashedBytes, RabinKarp, RollingHash};
+use succinct_neo::rolling_hash::{
+    CyclicPolynomial, HashedByteSet, HashedBytes, RabinKarp, RollingHash,
+};
 
 const STRING_SIZE: usize = 500_000_000;
 const WINDOW_SIZE: usize = 32;
@@ -93,12 +95,7 @@ fn bench_rolling_hash(c: &mut Criterion) {
 
     group.bench_function(BenchmarkId::new("insert", "rk_hash"), |b| {
         b.iter_batched_ref(
-            || {
-                (
-                    HashedByteSet::default(),
-                    RabinKarp::new(&s, WINDOW_SIZE),
-                )
-            },
+            || (HashedByteSet::default(), RabinKarp::new(&s, WINDOW_SIZE)),
             |(map, rk)| {
                 map.insert(rk.hashed_bytes());
                 rk.advance();

@@ -442,7 +442,11 @@ mod test {
                 2 * i
             );
         }
-        assert_eq!(None, pop.select(bv.len() / 2), "should return None if rank is higher than number of ones");
+        assert_eq!(
+            None,
+            pop.select(bv.len() / 2),
+            "should return None if rank is higher than number of ones"
+        );
     }
 
     #[test]
