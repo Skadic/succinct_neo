@@ -75,7 +75,7 @@ impl<'a> PointerBlockTree<'a> {
             let (prev_level, _) = rest.split_last_mut().unwrap();
             (current_level, prev_level)
         };
-        
+
         let mut last = self.blocks.next_id();
         for &mut prev_block in prev_level {
             if self.blocks[prev_block].is_back_block() {
@@ -294,7 +294,8 @@ mod test {
                 assert_eq!(
                     &bt.input[block.start..block.start + len],
                     &bt.input[source_start..source_start + len],
-                    "invalid pointer for block at index {}", block.start
+                    "invalid pointer for block at index {}",
+                    block.start
                 )
             }
         }

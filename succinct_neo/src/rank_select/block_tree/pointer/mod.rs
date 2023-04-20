@@ -68,11 +68,10 @@ impl<'a> PointerBlockTree<'a> {
 
 #[cfg(test)]
 mod test {
-    use test_case::test_case;
     use crate::test::res::texts::*;
+    use test_case::test_case;
 
     use super::PointerBlockTree;
-
 
     #[test_case(ALL_A; "all_a")]
     #[test_case(DNA; "dna")]

@@ -13,15 +13,19 @@ pub mod test {
     pub mod res {
         macro_rules! res {
             ($path:expr) => {
-                include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/resources/test/", $path))
+                include_str!(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/resources/test/",
+                    $path
+                ))
             };
         }
         pub mod texts {
             pub const ALL: [&str; 3] = [ALL_A, DNA, EINSTEIN];
 
-            pub const ALL_A: &str = res!("as.txt"); 
-            pub const DNA: &str = res!("dna.txt"); 
-            pub const EINSTEIN: &str = res!("einstein.txt"); 
+            pub const ALL_A: &str = res!("as.txt");
+            pub const DNA: &str = res!("dna.txt");
+            pub const EINSTEIN: &str = res!("einstein.txt");
         }
     }
 }
