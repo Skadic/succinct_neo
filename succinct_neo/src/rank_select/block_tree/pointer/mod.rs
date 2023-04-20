@@ -41,9 +41,9 @@ impl<'a> PointerBlockTree<'a> {
             level_block_count,
         };
 
+        // We process each level of the tree
         while bt.process_level().is_ok() {}
 
-        println!("{:#?}", bt.blocks);
         Ok(bt)
     }
 

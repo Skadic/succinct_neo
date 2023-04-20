@@ -3,7 +3,7 @@ use crate::{
     int_vec::{FixedIntVec, IntVector},
     rank_select::block_tree::pointer::{
         block::{Block, BlockId},
-        PointerBlockTree, Level,
+        Level, PointerBlockTree,
     },
     rolling_hash::{HashedByteMultiMap, HashedBytes, RabinKarp, RollingHash},
 };
@@ -45,9 +45,6 @@ impl<'a> PointerBlockTree<'a> {
         level_block_sizes.reverse();
         level_block_count.reverse();
 
-        println!("sizes: {:?}", level_block_sizes);
-        println!("count: {:?}", level_block_count);
-
         (level_block_sizes, level_block_count)
     }
 
@@ -72,6 +69,7 @@ impl<'a> PointerBlockTree<'a> {
         let n = self.input_length();
         // Insert a new vector to hold this level
         self.levels.push(Vec::with_capacity(num_blocks));
+
         let (current_level, prev_level) = {
             let (current_level, rest) = self.levels.split_last_mut().unwrap();
             let (prev_level, _) = rest.split_last_mut().unwrap();
@@ -189,7 +187,6 @@ impl<'a> PointerBlockTree<'a> {
     /// * `is_internal`: A bit vector that contains a bit for each block. That bit is 1, for every internal block, 0 for each back block.
     ///
     fn scan_blocks(&mut self, is_internal: BitVec) {
-        println!("{is_internal:?}");
         let level_depth = self.levels.len() - 1;
         let block_size = self.level_block_sizes[level_depth];
         let num_blocks = self.levels[level_depth].len();
@@ -216,18 +213,19 @@ impl<'a> PointerBlockTree<'a> {
         for (block_index, &current_block_id) in current_level.iter().enumerate() {
             let current_block = &self.blocks[current_block_id];
             // The number of times we want to hash inside this block and the start position of the next block
-            let (num_hashes, next_block_start) = {
+            let (num_hashes, next_block_start, next_adjacent) = {
                 let next_block = self.block(level_depth, block_index + 1);
                 let next_block_start = next_block.map(|b| b.start);
-                let num_hashes = match next_block {
-                    Some(next_block) if !current_block.is_adjacent(next_block) => 1,
-                    _ => {
+                let (num_hashes, next_adjacent) = match next_block {
+                    Some(next_block) if !current_block.is_adjacent(next_block) => (1, false),
+                    _ => (
                         current_block.len()
                             - (current_block.start + current_block.len())
-                                .saturating_sub(self.input.len())
-                    }
+                                .saturating_sub(self.input.len()),
+                        true,
+                    ),
                 };
-                (num_hashes, next_block_start)
+                (num_hashes, next_block_start, next_adjacent)
             };
             // For each window starting in this block, try to find blocks with the same content
             // If found, set a back pointer
@@ -258,7 +256,7 @@ impl<'a> PointerBlockTree<'a> {
                 rk.advance();
             }
             // This only happens if the next block is not adjacent
-            if num_hashes == 1 {
+            if !next_adjacent {
                 // So we recreate the hasher
                 rk = RabinKarp::new(&self.input[next_block_start.unwrap()..], block_size);
             }
@@ -269,16 +267,40 @@ impl<'a> PointerBlockTree<'a> {
 #[cfg(test)]
 mod test {
     use super::PointerBlockTree;
+    use crate::{
+        rank_select::block_tree::pointer::{
+            block::{Block, BlockType},
+            Level,
+        },
+        rolling_hash::{HashedByteMap, RabinKarp},
+        test::res::texts::*,
+    };
+    use test_case::test_case;
 
-    #[test]
-    fn block_size_test() {
-        // Char with 48 characters
-        let s = std::iter::repeat("abcdef".chars())
-            .take(7)
-            .flatten()
-            .chain("abcdeg".chars())
-            .collect::<String>();
-        println!("input len: {}", s.len());
-        let bt = PointerBlockTree::new(s.as_bytes(), 3, 2);
+    fn validate_links(bt: &PointerBlockTree, level: &Level) {
+        let blocks = level.iter().map(|&id| &bt.blocks[id]).collect::<Vec<_>>();
+        for block in blocks {
+            if let BlockType::Back(src_id, offset) = block.block_type {
+                let source_block = &bt.blocks[src_id];
+                let source_start = source_block.start + offset;
+                let len = block.end.min(bt.input_length()) - block.start;
+                assert_ne!(block, source_block, "cannot link block to itself");
+                assert_eq!(
+                    &bt.input[block.start..block.start + len],
+                    &bt.input[source_start..source_start + len],
+                    "invalid pointer for block at index {}", block.start
+                )
+            }
+        }
+    }
+
+    #[test_case(ALL_A; "all_a")]
+    #[test_case(DNA; "dna")]
+    #[test_case(EINSTEIN; "einstein")]
+    fn valid_back_pointers_test(input: &'static str) {
+        let bt = PointerBlockTree::new(input.as_bytes(), 4, 8).unwrap();
+        for level in bt.levels.iter() {
+            validate_links(&bt, level);
+        }
     }
 }
