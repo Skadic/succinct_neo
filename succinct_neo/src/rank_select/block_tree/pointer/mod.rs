@@ -56,4 +56,32 @@ impl<'a> PointerBlockTree<'a> {
         let id = *self.levels.get(level).and_then(|level| level.get(idx))?;
         self.blocks.get(id)
     }
+
+    fn root(&self) -> &Block {
+        &self.blocks[self.root]
+    }
+
+    pub fn get(&self, i: usize) -> u8 {
+        self.root().get(self, i)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use test_case::test_case;
+    use crate::test::res::texts::*;
+
+    use super::PointerBlockTree;
+
+
+    #[test_case(ALL_A; "all_a")]
+    #[test_case(DNA; "dna")]
+    #[test_case(EINSTEIN; "einstein")]
+    fn get_test(input: &'static str) {
+        let input = input.as_bytes();
+        let bt = PointerBlockTree::new(input, 4, 8).unwrap();
+        for (i, &c) in input.iter().enumerate() {
+            assert_eq!(c, bt.get(i), "mismatch as index {i}");
+        }
+    }
 }

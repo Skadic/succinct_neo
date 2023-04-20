@@ -75,6 +75,8 @@ impl<'a> PointerBlockTree<'a> {
             let (prev_level, _) = rest.split_last_mut().unwrap();
             (current_level, prev_level)
         };
+        
+        let mut last = self.blocks.next_id();
         for &mut prev_block in prev_level {
             if self.blocks[prev_block].is_back_block() {
                 continue;
@@ -92,8 +94,12 @@ impl<'a> PointerBlockTree<'a> {
                     .alloc(Block::internal(prev_start + i, prev_start + i + block_size));
                 current_level.push(block);
                 self.blocks[prev_block].add_child(block);
+                let next_id = self.blocks.next_id();
+                self.blocks[block].set_next(next_id);
+                last = block;
             }
         }
+        self.blocks[last].clear_next();
         Some(current_level)
     }
 
