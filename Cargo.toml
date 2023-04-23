@@ -1,13 +1,10 @@
 
 [workspace]
-members = [ 
-  "succinct_neo",
-  "xtask"
-]
+members = ["succinct_neo", "xtask"]
 
-exclude = [
-  "grcov"
-]
+default-members = ["succinct_neo"]
+
+exclude = ["grcov"]
 
 [profile.release]
 debug = 1
