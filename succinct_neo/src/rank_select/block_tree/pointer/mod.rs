@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use self::block::{Block, BlockId};
 use id_arena::Arena;
 
@@ -40,9 +42,10 @@ impl<'a> PointerBlockTree<'a> {
             level_block_sizes,
             level_block_count,
         };
-
+        let mut first_occurrences = HashMap::<BlockId, (BlockId, usize)>::new();
         // We process each level of the tree
-        while bt.process_level().is_ok() {}
+        while bt.process_level(&mut first_occurrences).is_ok() {}
+        bt.prune(first_occurrences);
 
         Ok(bt)
     }

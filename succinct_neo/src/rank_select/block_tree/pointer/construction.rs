@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::{
     bit_vec::BitVec,
     int_vec::{FixedIntVec, IntVector},
@@ -19,7 +21,7 @@ impl<'a> PointerBlockTree<'a> {
     ///
     /// returns: A tuple containing a [Vec] with the block sizes for each level and a [Vec] with the number of blocks for each level.
     ///
-    pub(crate) fn calculate_level_block_sizes(
+    pub(super) fn calculate_level_block_sizes(
         input_length: usize,
         arity: usize,
         leaf_length: usize,
@@ -49,10 +51,13 @@ impl<'a> PointerBlockTree<'a> {
     }
 
     /// Generate a new level and process it by introducing back pointers
-    pub(crate) fn process_level(&mut self) -> Result<(), &'static str> {
+    pub(super) fn process_level(
+        &mut self,
+        internal_block_first_occurrences: &mut HashMap<BlockId, (BlockId, usize)>,
+    ) -> Result<(), &'static str> {
         self.generate_level().ok_or("could not generate level")?;
         let is_internal = self.scan_block_pairs();
-        self.scan_blocks(is_internal);
+        self.scan_blocks(&is_internal, internal_block_first_occurrences);
 
         Ok(())
     }
@@ -180,7 +185,7 @@ impl<'a> PointerBlockTree<'a> {
             .into_iter()
             .enumerate()
             .map(|(i, v)| v == 2 || i == 0 || i == num_blocks - 1 && v == 1)
-            .collect::<BitVec>()
+            .collect()
     }
 
     /// Scans through the newest level and saves the hash of every non-internal block in a map.
@@ -191,27 +196,31 @@ impl<'a> PointerBlockTree<'a> {
     /// # Arguments
     ///
     /// * `is_internal`: A bit vector that contains a bit for each block. That bit is 1, for every internal block, 0 for each back block.
+    /// * `internal_block_first_occurrences`: A map mapping from a block id `i` to the block id,
+    /// and offset of its source
     ///
-    fn scan_blocks(&mut self, is_internal: BitVec) {
+    fn scan_blocks(
+        &mut self,
+        is_internal: &BitVec,
+        internal_block_first_occurrences: &mut HashMap<BlockId, (BlockId, usize)>,
+    ) {
         let level_depth = self.levels.len() - 1;
         let block_size = self.level_block_sizes[level_depth];
         let num_blocks = self.levels[level_depth].len();
 
-        // Contains the hashes for every pair of blocks
-        let mut map = HashedByteMultiMap::<(HashedBytes, BlockId)>::default();
+        // Contains the hashes for every block. We save the hash and the block index on this level
+        let mut block_hashes = HashedByteMultiMap::<(HashedBytes, usize)>::default();
 
         let current_level = self.levels[level_depth].as_slice();
         // We hash every non-internal blocks and store them in the map
-        for i in (0..num_blocks - 1).filter(|&i| !is_internal.get(i)) {
+        for i in 0..num_blocks - 1 {
             // Hash the current block
             let rk = RabinKarp::new(
                 &self.input[self.block(level_depth, i).unwrap().start..],
                 block_size,
             );
             let hashed = rk.hashed_bytes();
-            map.entry(hashed).or_insert((hashed, current_level[i]));
-
-            map.insert(hashed, (hashed, current_level[i]));
+            block_hashes.insert(hashed, (hashed, i));
         }
 
         let mut rk = RabinKarp::new(self.input, block_size);
@@ -239,26 +248,29 @@ impl<'a> PointerBlockTree<'a> {
                 let hashed = rk.hashed_bytes();
                 let current_ptr = hashed.bytes().as_ptr();
 
-                match map.get_vec(&hashed) {
-                    // This window does not exist in the map. Nothing to do
-                    None => {}
-                    // hashes of some block with the same hash as the current window
-                    // Since this is still in the map, we know this is the first time we have come across this
-                    Some(results) => {
-                        for (block_hash, block_id) in results {
+                // We search for hashes of blocks with the same hash as the current window
+                if let Some(results) = block_hashes.get_vec(&hashed) {
+                    for &(block_hash, index) in results {
+                        if !is_internal.get(index) {
                             let found_ptr = block_hash.bytes().as_ptr();
                             // SAFETY: We know the pointers are from the same string
                             let byte_offset = unsafe { found_ptr.offset_from(current_ptr) };
                             // This means that `block_hash` is a previous (actually the
                             // leftmost) occurrence of `hashed`
                             if byte_offset > 0 {
-                                self.blocks[*block_id].replace(current_block_id, offset);
+                                self.blocks[current_level[index]].replace(current_block_id, offset);
                             }
+                        } else {
+                            // If we find a block that is not to be replaced (yet) we save its
+                            // first occurrence and a counter in preparation for the pruning step
+                            internal_block_first_occurrences
+                                .entry(current_level[index])
+                                .or_insert((current_level[index], offset));
                         }
                     }
                 }
-                // We handled this window. Remove it from the map
-                map.remove(&hashed);
+                // We handled this window's content so we remove it from the map
+                block_hashes.remove(&hashed);
                 rk.advance();
             }
             // This only happens if the next block is not adjacent
@@ -267,6 +279,10 @@ impl<'a> PointerBlockTree<'a> {
                 rk = RabinKarp::new(&self.input[next_block_start.unwrap()..], block_size);
             }
         }
+    }
+
+    pub(super) fn prune(&mut self, mut first_occurrences: HashMap<BlockId, (BlockId, usize)>) {
+        Block::prune(&mut self.blocks, self.root, &mut first_occurrences);
     }
 }
 
@@ -286,7 +302,11 @@ mod test {
     fn validate_links(bt: &PointerBlockTree, level: &Level) {
         let blocks = level.iter().map(|&id| &bt.blocks[id]).collect::<Vec<_>>();
         for block in blocks {
-            if let BlockType::Back(src_id, offset) = block.block_type {
+            if let BlockType::Back {
+                source: src_id,
+                offset,
+            } = block.block_type
+            {
                 let source_block = &bt.blocks[src_id];
                 let source_start = source_block.start + offset;
                 let len = block.end.min(bt.input_length()) - block.start;
