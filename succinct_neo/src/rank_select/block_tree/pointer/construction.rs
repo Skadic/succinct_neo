@@ -290,10 +290,7 @@ impl<'a> PointerBlockTree<'a> {
 mod test {
     use super::PointerBlockTree;
     use crate::{
-        rank_select::block_tree::pointer::{
-            block::{BlockType},
-            Level,
-        },
+        rank_select::block_tree::pointer::{block::BlockType, Level},
         test::res::texts::*,
     };
     use test_case::test_case;
