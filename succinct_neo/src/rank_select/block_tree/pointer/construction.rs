@@ -291,10 +291,9 @@ mod test {
     use super::PointerBlockTree;
     use crate::{
         rank_select::block_tree::pointer::{
-            block::{Block, BlockType},
+            block::{BlockType},
             Level,
         },
-        rolling_hash::{HashedByteMap, RabinKarp},
         test::res::texts::*,
     };
     use test_case::test_case;

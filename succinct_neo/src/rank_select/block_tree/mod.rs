@@ -66,7 +66,7 @@ impl BlockTree {
     }
 
     fn process_level(&mut self, s: &[u8], level: usize) {
-        let marked_pairs = self.scan_block_pairs(s, level);
+        let _marked_pairs = self.scan_block_pairs(s, level);
     }
 
     /// Scan through the blocks pairwise in order to identify leftmost occurrences of block pairs.
@@ -77,7 +77,7 @@ impl BlockTree {
     /// * `level` - The current level
     ///
     /// returns: A bit vector where every marked pair of blocks is marked with a 1
-    fn scan_block_pairs<'a>(&mut self, s: &'a [u8], level: usize) -> BitVec {
+    fn scan_block_pairs(&mut self, s: &[u8], level: usize) -> BitVec {
         let block_size = self.level_block_sizes[level];
         let num_blocks = self.level_block_count[level];
         let pair_size = 2 * block_size;
@@ -158,6 +158,6 @@ mod test {
         let s = "verygoodverybaadverygoodverygood";
         //let s = "aaaaaaaaaaaa";
         println!("string len: {}", s.len());
-        let bt = BlockTree::new(s, 2, 4);
+        let _bt = BlockTree::new(s, 2, 4);
     }
 }

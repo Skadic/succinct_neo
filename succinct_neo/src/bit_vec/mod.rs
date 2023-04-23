@@ -4,7 +4,7 @@ use std::ops::{Deref, DerefMut};
 use itertools::Itertools;
 
 pub use crate::bit_vec::slice::BitSlice;
-use crate::int_vec::{DynamicIntVec, FixedIntVec, IntVector};
+use crate::int_vec::{IntVector};
 pub use traits::*;
 
 use self::slice::Iter;
