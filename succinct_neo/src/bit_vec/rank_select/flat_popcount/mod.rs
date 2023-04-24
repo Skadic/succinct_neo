@@ -1,4 +1,5 @@
 use crate::bit_vec::{BitGet, BitVec};
+use std::borrow::Borrow;
 use std::marker::PhantomData;
 
 use crate::bit_vec::rank_select::traits::{BitRankSupport, BitSelectSupport};
@@ -30,15 +31,22 @@ pub use strats::*;
 ///
 /// This data structure should work well in most cases with a low memory overhead over the
 /// bitvector (less than 4%).
-pub struct FlatPopcount<'a, Strat = LinearSearch> {
-    backing: &'a BitVec,
+pub struct FlatPopcount<'a, Backing, Strat = LinearSearch>
+where
+    Backing: 'a + Borrow<BitVec>,
+{
+    backing: Backing,
     l1_index: Vec<u128>,
     sampled_ones: DynamicIntVec,
     number_of_ones: usize,
-    _mark: PhantomData<Strat>,
+    _strat_mark: PhantomData<Strat>,
+    _lifetime_mark: PhantomData<&'a BitVec>,
 }
 
-impl<'a, T> FlatPopcount<'a, T> {
+impl<'a, Strat, Backing> FlatPopcount<'a, Backing, Strat>
+where
+    Backing: 'a + Borrow<BitVec>,
+{
     /// Creates a new rank data structure from a bit vector.
     ///
     /// # Arguments
@@ -63,24 +71,26 @@ impl<'a, T> FlatPopcount<'a, T> {
     /// assert_eq!(2, rank_ds.rank::<true>(17));
     /// assert_eq!(12, rank_ds.rank::<false>(13));
     /// ```
-    pub fn new(backing: &'a BitVec) -> Self {
-        if backing.len() == 0 {
+    pub fn new(backing: Backing) -> Self {
+        let n = backing.borrow().len();
+        if n == 0 {
             return Self {
                 backing,
                 l1_index: Vec::with_capacity(0),
                 sampled_ones: DynamicIntVec::new(1),
-                _mark: Default::default(),
+                _strat_mark: Default::default(),
+                _lifetime_mark: Default::default(),
                 number_of_ones: 0,
             };
         }
 
-        let n = backing.len();
         let log_n = n.ilog2() as usize + 1;
         let mut temp = Self {
             backing,
             l1_index: Vec::with_capacity((n as f64 / L1_BLOCK_SIZE as f64).ceil() as usize + 1),
             sampled_ones: DynamicIntVec::new(log_n),
-            _mark: Default::default(),
+            _strat_mark: Default::default(),
+            _lifetime_mark: Default::default(),
             number_of_ones: 0,
         };
         temp.build_indices();
@@ -92,7 +102,7 @@ impl<'a, T> FlatPopcount<'a, T> {
     fn build_indices(&mut self) {
         let mut num_ones = 0;
         let mut ones_in_l1 = 0;
-        let raw_bv = self.backing.raw();
+        let raw_bv = self.backing.borrow().raw();
 
         let mut current_l1 = 0u128;
         let mut i = 0;
@@ -128,7 +138,7 @@ impl<'a, T> FlatPopcount<'a, T> {
     /// Samples every 8192nd one and saves the l1 block it is in
     fn sample_ones(&mut self) {
         let mut count = -1isize;
-        for (i, value) in self.backing.iter().enumerate() {
+        for (i, value) in self.backing.borrow().iter().enumerate() {
             if value {
                 count += 1;
                 if count & ((1 << 13) - 1) == 0 {
@@ -157,7 +167,7 @@ impl<'a, T> FlatPopcount<'a, T> {
     /// ```
     #[inline]
     pub fn len(&self) -> usize {
-        self.backing.len()
+        self.backing.borrow().len()
     }
 
     /// Returns `true`, if the backing bit vector is empty.
@@ -239,8 +249,7 @@ impl<'a, T> FlatPopcount<'a, T> {
         n - 1
     }
 }
-
-impl<T> BitRankSupport for FlatPopcount<'_, T> {
+impl<'a, Strat, Backing> BitRankSupport for FlatPopcount<'_, Backing, Strat> where Backing: 'a + Borrow<BitVec> {
     fn rank<const TARGET: bool>(&self, index: usize) -> usize {
         let l1_index = index >> L1_BLOCK_SIZE_EXP;
         let l2_index = (index >> L2_BLOCK_SIZE_EXP) & 0b0111;
@@ -254,7 +263,7 @@ impl<T> BitRankSupport for FlatPopcount<'_, T> {
         let rest_bits = internal_index - (full_remaining_words << 6);
 
         let mut ones = self.rough_rank_1(l1_index, l2_index);
-        let raw_backing = self.backing.raw();
+        let raw_backing = self.backing.borrow().raw();
         let word_start = (l1_index << 6) + (l2_index << 3);
         for i in 0..full_remaining_words {
             ones += unsafe { raw_backing.get_unchecked(word_start + i).count_ones() as usize };
@@ -278,7 +287,7 @@ impl<T> BitRankSupport for FlatPopcount<'_, T> {
     }
 }
 
-impl<Strat: SelectStrategy> BitSelectSupport<true> for FlatPopcount<'_, Strat> {
+impl<'a, Strat: SelectStrategy, Backing> BitSelectSupport<true> for FlatPopcount<'a, Backing, Strat> where Backing: 'a + Borrow<BitVec> {
     fn select(&self, mut rank: usize) -> Option<usize> {
         if rank >= self.number_of_ones {
             return None;
@@ -298,7 +307,7 @@ impl<Strat: SelectStrategy> BitSelectSupport<true> for FlatPopcount<'_, Strat> {
         let mut index_in_l2 = 0;
         loop {
             let num_ones =
-                unsafe { self.backing.raw().get_unchecked(current_index).count_ones() as usize };
+                unsafe { self.backing.borrow().raw().get_unchecked(current_index).count_ones() as usize };
             if num_ones <= rank {
                 rank -= num_ones;
                 current_index += 1;
@@ -309,7 +318,7 @@ impl<Strat: SelectStrategy> BitSelectSupport<true> for FlatPopcount<'_, Strat> {
         }
 
         // Find the correct 1 inside the word
-        let word = unsafe { *self.backing.raw().get_unchecked(current_index) };
+        let word = unsafe { *self.backing.borrow().raw().get_unchecked(current_index) };
         let mut index_in_word = 0;
         loop {
             let bit = unsafe { word.get_bit_unchecked(index_in_word) };
@@ -332,19 +341,22 @@ impl<Strat: SelectStrategy> BitSelectSupport<true> for FlatPopcount<'_, Strat> {
     }
 }
 
-impl<'a> BitGet for FlatPopcount<'a> {
+impl<'a, T, Backing: 'a + Borrow<BitVec>> BitGet for FlatPopcount<'a, Backing, T> {
     #[inline]
     unsafe fn get_bit_unchecked(&self, index: usize) -> bool {
-        self.backing.get_bit_unchecked(index)
+        self.backing.borrow().get_bit_unchecked(index)
     }
 
     #[inline]
     fn get_bit(&self, index: usize) -> bool {
-        self.backing.get_bit(index)
+        self.backing.borrow().get_bit(index)
     }
 }
+
 #[cfg(test)]
 mod test {
+    use std::borrow::Borrow;
+
     use super::{FlatPopcount, L2_INDEX_MASK};
     use crate::{
         bit_vec::{
@@ -358,12 +370,12 @@ mod test {
     };
 
     #[inline]
-    fn l1(pop: &FlatPopcount, index: usize) -> usize {
+    fn l1<T>(pop: &FlatPopcount<impl Borrow<BitVec>, T>, index: usize) -> usize {
         (&pop.l1_index[index] >> 84) as usize
     }
 
     #[inline]
-    fn l2(pop: &FlatPopcount, l1_index: usize, l2_index: usize) -> usize {
+    fn l2<T>(pop: &FlatPopcount<impl Borrow<BitVec>, T>, l1_index: usize, l2_index: usize) -> usize {
         let offset = 12 * (6 - l2_index);
         ((pop.l1_index[l1_index] >> offset) & L2_INDEX_MASK) as usize
     }
@@ -376,7 +388,7 @@ mod test {
             bv.set(i, i % 2 == 0)
         }
 
-        let pop = FlatPopcount::new(&bv);
+        let pop = FlatPopcount::<_, ()>::new(&bv);
 
         assert_eq!(
             bv.len(),
@@ -415,7 +427,7 @@ mod test {
             bv.set(i, i & 2 == 0)
         }
 
-        let pop = FlatPopcount::<()>::new(&bv);
+        let pop = FlatPopcount::<_, ()>::new(&bv);
 
         let mut ones = 0;
         for i in 0..bv.len() {
@@ -433,7 +445,7 @@ mod test {
             bv.set(i, i % 2 == 0)
         }
 
-        let pop = FlatPopcount::<BinarySearch>::new(&bv);
+        let pop = FlatPopcount::<_, BinarySearch>::new(&bv);
         for i in 1..bv.len() / 2 {
             assert_eq!(
                 Some(2 * i),
@@ -457,7 +469,7 @@ mod test {
             bv.set(i, i % 2 == 0)
         }
 
-        let pop = FlatPopcount::<BinarySearch>::new(&bv);
+        let pop = FlatPopcount::<_, BinarySearch>::new(&bv);
 
         assert_eq!(None, pop.select(100000));
     }
