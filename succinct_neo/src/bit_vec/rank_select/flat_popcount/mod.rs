@@ -31,21 +31,20 @@ pub use strats::*;
 ///
 /// This data structure should work well in most cases with a low memory overhead over the
 /// bitvector (less than 4%).
-pub struct FlatPopcount<'a, Backing, Strat = LinearSearch>
+pub struct FlatPopcount<Backing, Strat = LinearSearch>
 where
-    Backing: 'a + Borrow<BitVec>,
+    Backing: Borrow<BitVec>,
 {
     backing: Backing,
     l1_index: Vec<u128>,
     sampled_ones: DynamicIntVec,
     number_of_ones: usize,
     _strat_mark: PhantomData<Strat>,
-    _lifetime_mark: PhantomData<&'a BitVec>,
 }
 
-impl<'a, Strat, Backing> FlatPopcount<'a, Backing, Strat>
+impl<Strat, Backing> FlatPopcount<Backing, Strat>
 where
-    Backing: 'a + Borrow<BitVec>,
+    Backing: Borrow<BitVec>,
 {
     /// Creates a new rank data structure from a bit vector.
     ///
@@ -79,7 +78,6 @@ where
                 l1_index: Vec::with_capacity(0),
                 sampled_ones: DynamicIntVec::new(1),
                 _strat_mark: Default::default(),
-                _lifetime_mark: Default::default(),
                 number_of_ones: 0,
             };
         }
@@ -90,7 +88,6 @@ where
             l1_index: Vec::with_capacity((n as f64 / L1_BLOCK_SIZE as f64).ceil() as usize + 1),
             sampled_ones: DynamicIntVec::new(log_n),
             _strat_mark: Default::default(),
-            _lifetime_mark: Default::default(),
             number_of_ones: 0,
         };
         temp.build_indices();
@@ -249,7 +246,7 @@ where
         n - 1
     }
 }
-impl<'a, Strat, Backing> BitRankSupport for FlatPopcount<'_, Backing, Strat> where Backing: 'a + Borrow<BitVec> {
+impl<Strat, Backing> BitRankSupport for FlatPopcount<Backing, Strat> where Backing: Borrow<BitVec> {
     fn rank<const TARGET: bool>(&self, index: usize) -> usize {
         let l1_index = index >> L1_BLOCK_SIZE_EXP;
         let l2_index = (index >> L2_BLOCK_SIZE_EXP) & 0b0111;
@@ -287,7 +284,7 @@ impl<'a, Strat, Backing> BitRankSupport for FlatPopcount<'_, Backing, Strat> whe
     }
 }
 
-impl<'a, Strat: SelectStrategy, Backing> BitSelectSupport<true> for FlatPopcount<'a, Backing, Strat> where Backing: 'a + Borrow<BitVec> {
+impl<Strat: SelectStrategy, Backing> BitSelectSupport<true> for FlatPopcount<Backing, Strat> where Backing: Borrow<BitVec> {
     fn select(&self, mut rank: usize) -> Option<usize> {
         if rank >= self.number_of_ones {
             return None;
@@ -341,7 +338,7 @@ impl<'a, Strat: SelectStrategy, Backing> BitSelectSupport<true> for FlatPopcount
     }
 }
 
-impl<'a, T, Backing: 'a + Borrow<BitVec>> BitGet for FlatPopcount<'a, Backing, T> {
+impl<T, Backing: Borrow<BitVec>> BitGet for FlatPopcount<Backing, T> {
     #[inline]
     unsafe fn get_bit_unchecked(&self, index: usize) -> bool {
         self.backing.borrow().get_bit_unchecked(index)
