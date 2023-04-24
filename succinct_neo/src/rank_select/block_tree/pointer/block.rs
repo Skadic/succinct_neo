@@ -17,10 +17,7 @@ pub(crate) enum BlockType {
         children: Vec<BlockId>,
         incident_pointers: u32,
     },
-    Back {
-        source: BlockId,
-        offset: usize,
-    },
+    Back,
 }
 
 #[derive(Debug, Clone)]
@@ -33,6 +30,8 @@ pub(crate) struct Block {
     pub next: Option<BlockId>,
     /// The type of this block
     pub block_type: BlockType,
+    pub source: Option<BlockId>,
+    pub offset: Option<usize>,
 }
 
 impl Block {
@@ -46,12 +45,16 @@ impl Block {
                 children: Vec::new(),
                 incident_pointers: 0,
             },
+            source: None,
+            offset: None,
         }
     }
 
     #[inline]
     pub fn replace(&mut self, source: BlockId, offset: usize) {
-        self.block_type = BlockType::Back { source, offset };
+        self.source = Some(source);
+        self.offset = Some(offset);
+        self.block_type = BlockType::Back;
     }
 
     #[inline]
@@ -102,12 +105,15 @@ impl Block {
                 let new_i = i % child_len;
                 bt.blocks[children[child_idx]].get(bt, new_i)
             }
-            BlockType::Back { source, offset } if offset + i < self.len() => {
-                bt.blocks[source].get(bt, offset + i)
-            }
-            BlockType::Back { source, offset } => {
-                let source_id = bt.blocks[source].next.unwrap();
-                bt.blocks[source_id].get(bt, offset + i - self.len())
+            BlockType::Back => {
+                let offset = unsafe { self.offset.unwrap_unchecked() };
+                let source = unsafe { self.source.unwrap_unchecked() };
+                if offset + i < self.len() {
+                    bt.blocks[source].get(bt, offset + i)
+                } else {
+                    let source_id = bt.blocks[source].next.unwrap();
+                    bt.blocks[source_id].get(bt, offset + i - self.len())
+                }
             }
         }
     }
@@ -127,11 +133,7 @@ impl Block {
     }
 
     #[allow(clippy::only_used_in_recursion)]
-    pub(super) fn prune(
-        blocks: &mut Arena<Block>,
-        self_id: BlockId,
-        first_occurrences: &mut HashMap<BlockId, (BlockId, usize)>,
-    ) {
+    pub(super) fn prune(blocks: &mut Arena<Block>, self_id: BlockId) {
         // SAFETY: we decouple this block's lifetime from the Arena in order to pass the arena to
         //  the recursive call
         //  This is safe, since a block cannot have itself as a child and the recursive calls only
@@ -144,7 +146,7 @@ impl Block {
                 incident_pointers,
             } => {
                 for &child_id in children.iter().rev() {
-                    Self::prune(blocks, child_id, first_occurrences);
+                    Self::prune(blocks, child_id);
                 }
 
                 // From here, we check requirements that need to hold if we want to replace this
@@ -156,19 +158,18 @@ impl Block {
                 }
 
                 // There needs to be a previous occurrence that does not overlap this block
-                let (source, offset) =
-                    match first_occurrences.get(&self_id).map(|&(block, offset)| {
-                        (
-                            block,
-                            offset,
-                            blocks[block].start + offset + blocks[block].len(),
-                        )
-                    }) {
-                        Some((source_id, offset, source_end)) if source_end <= me.start => {
-                            (source_id, offset)
-                        }
-                        _ => return,
-                    };
+                let (source, offset) = match me.source.zip(me.offset).map(|(block, offset)| {
+                    (
+                        block,
+                        offset,
+                        blocks[block].start + offset + blocks[block].len(),
+                    )
+                }) {
+                    Some((source_id, offset, source_end)) if source_end <= me.start => {
+                        (source_id, offset)
+                    }
+                    _ => return,
+                };
 
                 // This is true if all children either are back blocks or have no children (i.e. are
                 // leaves)
@@ -198,7 +199,9 @@ impl Block {
     /// Increments the pointer count of the block(s) this block is pointing to (if it is a back
     /// block).
     fn increment_pointer_count(&mut self, blocks: &mut Arena<Block>) {
-        if let BlockType::Back { source, offset } = self.block_type {
+        if let BlockType::Back = self.block_type {
+            let offset = unsafe { self.offset.unwrap_unchecked() };
+            let source = unsafe { self.source.unwrap_unchecked() };
             let source_block = &mut blocks[source];
             if let BlockType::Internal {
                 ref mut incident_pointers,
@@ -222,7 +225,9 @@ impl Block {
     /// Decrements the pointer count of the block(s) this block is pointing to (if it is a back
     /// block).
     fn decrement_pointer_count(&mut self, blocks: &mut Arena<Block>) {
-        if let BlockType::Back { source, offset } = self.block_type {
+        if let BlockType::Back = self.block_type {
+            let offset = unsafe { self.offset.unwrap_unchecked() };
+            let source = unsafe { self.source.unwrap_unchecked() };
             let source_block = &mut blocks[source];
             if let BlockType::Internal {
                 ref mut incident_pointers,

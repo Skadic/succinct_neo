@@ -1,13 +1,8 @@
-use std::collections::HashMap;
-
 use crate::{
     bit_vec::BitVec,
     int_vec::{FixedIntVec, IntVector},
-    rank_select::block_tree::pointer::{
-        block::{Block, BlockId},
-        Level, PointerBlockTree,
-    },
-    rolling_hash::{HashedByteMultiMap, HashedBytes, RabinKarp, RollingHash},
+    rank_select::block_tree::pointer::{block::Block, Level, PointerBlockTree},
+    rolling_hash::{HashedByteMap, HashedByteMultiMap, HashedBytes, RabinKarp, RollingHash},
 };
 
 impl<'a> PointerBlockTree<'a> {
@@ -51,19 +46,18 @@ impl<'a> PointerBlockTree<'a> {
     }
 
     /// Generate a new level and process it by introducing back pointers
-    pub(super) fn process_level(
-        &mut self,
-        internal_block_first_occurrences: &mut HashMap<BlockId, (BlockId, usize)>,
-    ) -> Result<(), &'static str> {
+    #[inline(never)]
+    pub(super) fn process_level(&mut self) -> Result<(), &'static str> {
         self.generate_level().ok_or("could not generate level")?;
         let is_internal = self.scan_block_pairs();
-        self.scan_blocks(&is_internal, internal_block_first_occurrences);
+        self.scan_blocks(&is_internal);
 
         Ok(())
     }
 
     /// Generates a new level. Returns a mutable reference to the level if there actually was a level to be generated, `None`
     /// otherwise.
+    #[inline(never)]
     fn generate_level(&mut self) -> Option<&mut Level> {
         let level_depth = self.levels.len();
         if level_depth >= self.level_block_sizes.len() {
@@ -111,6 +105,7 @@ impl<'a> PointerBlockTree<'a> {
     /// Scan through the blocks of the current level pairwise in order to identify leftmost occurrences of block pairs.
     ///
     /// returns: A bit vector where every internal block is marked with a 1 and all back blocks are 0
+    #[inline(never)]
     fn scan_block_pairs(&mut self) -> BitVec {
         let level_depth = self.levels.len() - 1;
         let block_size = self.level_block_sizes[level_depth];
@@ -120,7 +115,7 @@ impl<'a> PointerBlockTree<'a> {
         let mut rk = RabinKarp::new(self.input, pair_size);
 
         // Contains the hashes for every pair of blocks
-        let mut map = HashedByteMultiMap::default();
+        let mut map = HashedByteMap::default();
 
         // We hash every pair of blocks and store them in the map
         for i in 0..num_blocks - 1 {
@@ -129,11 +124,11 @@ impl<'a> PointerBlockTree<'a> {
             if !current_block.is_adjacent(next_block) {
                 // Skip non-adjacent blocks
                 rk = RabinKarp::new(&self.input[next_block.start..], pair_size);
-                continue;
+            } else {
+                let hashed = rk.hashed_bytes();
+                map.entry(hashed).or_insert(hashed);
+                rk.advance_n(block_size);
             }
-            let hashed = rk.hashed_bytes();
-            map.entry(hashed).or_insert(hashed);
-            rk.advance_n(block_size);
         }
 
         // Contains an entry for every block
@@ -199,11 +194,8 @@ impl<'a> PointerBlockTree<'a> {
     /// * `internal_block_first_occurrences`: A map mapping from a block id `i` to the block id,
     /// and offset of its source
     ///
-    fn scan_blocks(
-        &mut self,
-        is_internal: &BitVec,
-        internal_block_first_occurrences: &mut HashMap<BlockId, (BlockId, usize)>,
-    ) {
+    #[inline(never)]
+    fn scan_blocks(&mut self, is_internal: &BitVec) {
         let level_depth = self.levels.len() - 1;
         let block_size = self.level_block_sizes[level_depth];
         let num_blocks = self.levels[level_depth].len();
@@ -263,9 +255,15 @@ impl<'a> PointerBlockTree<'a> {
                         } else {
                             // If we find a block that is not to be replaced (yet) we save its
                             // first occurrence and a counter in preparation for the pruning step
-                            internal_block_first_occurrences
-                                .entry(current_level[index])
-                                .or_insert((current_level[index], offset));
+                            //internal_block_first_occurrences
+                            //    .entry(current_level[index])
+                            //    .or_insert((current_level[index], offset));
+                            let block_id = current_level[index];
+                            let b = &mut self.blocks[block_id];
+                            if b.source.is_none() {
+                                b.source = Some(block_id);
+                                b.offset = Some(offset);
+                            }
                         }
                     }
                 }
@@ -281,8 +279,8 @@ impl<'a> PointerBlockTree<'a> {
         }
     }
 
-    pub(super) fn prune(&mut self, mut first_occurrences: HashMap<BlockId, (BlockId, usize)>) {
-        Block::prune(&mut self.blocks, self.root, &mut first_occurrences);
+    pub(super) fn prune(&mut self) {
+        Block::prune(&mut self.blocks, self.root);
     }
 }
 
@@ -298,11 +296,9 @@ mod test {
     fn validate_links(bt: &PointerBlockTree, level: &Level) {
         let blocks = level.iter().map(|&id| &bt.blocks[id]).collect::<Vec<_>>();
         for block in blocks {
-            if let BlockType::Back {
-                source: src_id,
-                offset,
-            } = block.block_type
-            {
+            if let BlockType::Back = block.block_type {
+                let src_id = unsafe { block.source.unwrap_unchecked() };
+                let offset = unsafe { block.offset.unwrap_unchecked() };
                 let source_block = &bt.blocks[src_id];
                 let source_start = source_block.start + offset;
                 let len = block.end.min(bt.input_length()) - block.start;

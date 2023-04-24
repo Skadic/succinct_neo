@@ -73,6 +73,21 @@ impl<'a> RabinKarp<'a> {
             rem,
         }
     }
+
+    pub fn hash_direct<T: AsRef<[u8]> + ?Sized>(s: &'a T) -> HashedBytes {
+        let bytes = s.as_ref();
+
+        // Create the initial hash value
+        let mut hash = 0;
+        for i in 0..bytes.len() {
+            let c = bytes.get(i).copied().unwrap_or_default() as u64;
+            hash *= BASE;
+            hash += c;
+            hash %= PRIME;
+        }
+
+        HashedBytes { bytes, hash }
+    }
 }
 
 impl<'a> RollingHash<'a> for RabinKarp<'a> {
@@ -81,6 +96,7 @@ impl<'a> RollingHash<'a> for RabinKarp<'a> {
         self.hash
     }
 
+    #[inline(never)]
     fn advance(&mut self) -> u64 {
         let outchar = self.s.get(self.offset).copied().unwrap_or_default() as u64;
         let inchar = self
@@ -112,6 +128,7 @@ impl<'a> RollingHash<'a> for RabinKarp<'a> {
 impl<'a> Iterator for RabinKarp<'a> {
     type Item = HashedBytes<'a>;
 
+    #[inline(never)]
     fn next(&mut self) -> Option<Self::Item> {
         if self.offset + self.window_size > self.s.len() {
             return None;
@@ -174,7 +191,7 @@ mod test {
         let hash1 = rk.hashed_bytes();
         rk.advance_n(5);
         let hash2 = rk.hashed_bytes();
-        assert_eq!(hash1.bytes, hash2.bytes, "backing bytes not equal");
+        assert_eq!(hash1.bytes(), hash2.bytes(), "backing bytes not equal");
         assert_eq!(hash1.hash, hash2.hash, "hashes not equal");
         assert_eq!(hash1, hash2, "hash objects not equal");
     }
@@ -188,7 +205,8 @@ mod test {
             rk.advance();
             let hash = rk.hashed_bytes();
             assert_eq!(
-                prev_hash.bytes, hash.bytes,
+                prev_hash.bytes(),
+                hash.bytes(),
                 "backing bytes not equal at {i}"
             );
             assert_eq!(prev_hash.hash, hash.hash, "hashes not equal at {i}");
@@ -207,7 +225,7 @@ mod test {
         for i in 2..string_source.len() - 5 {
             rk.advance();
             let hash = dbg!(i, rk.hashed_bytes()).1;
-            assert_eq!(prev_hash2.bytes, hash.bytes, "bytes not equal at {i}");
+            assert_eq!(prev_hash2.bytes(), hash.bytes(), "bytes not equal at {i}");
             assert_eq!(prev_hash2.hash, hash.hash, "hashes not equal at {i}");
             assert_eq!(prev_hash2, hash, "hash objects not equal at {i}");
             prev_hash2 = prev_hash1;

@@ -1,7 +1,8 @@
 use multimap::MultiMap;
-use std::collections::{HashMap, HashSet};
+use nohash_hasher::{BuildNoHashHasher, IntMap, IntSet, IsEnabled};
+
 use std::fmt::Debug;
-use std::hash::{BuildHasherDefault, Hash, Hasher};
+use std::hash::{Hash, Hasher};
 
 mod cyclic_polynomial;
 mod rabin_karp;
@@ -11,11 +12,10 @@ pub use cyclic_polynomial::CyclicPolynomial;
 pub use rabin_karp::RabinKarp;
 pub use traits::*;
 
-pub type HashedByteMap<'a, V = HashedBytes<'a>> =
-    HashMap<HashedBytes<'a>, V, HashedBytesBuildHasher>;
-pub type HashedByteSet<'a> = HashSet<HashedBytes<'a>, HashedBytesBuildHasher>;
+pub type HashedByteMap<'a, V = HashedBytes<'a>> = IntMap<HashedBytes<'a>, V>;
+pub type HashedByteSet<'a> = IntSet<HashedBytes<'a>>;
 pub type HashedByteMultiMap<'a, V = HashedBytes<'a>> =
-    MultiMap<HashedBytes<'a>, V, HashedBytesBuildHasher>;
+    MultiMap<HashedBytes<'a>, V, BuildNoHashHasher<HashedBytes<'a>>>;
 pub type HashedByteMultiSet<'a> = HashedByteMultiMap<'a, ()>;
 
 /// A slice of a string augmented with its hash value.
@@ -99,17 +99,4 @@ impl PartialEq for HashedBytes<'_> {
 
 impl Eq for HashedBytes<'_> {}
 
-/// Hasher only for HashedBytes
-#[derive(Default)]
-pub struct HashedBytesHasher(u64);
-impl Hasher for HashedBytesHasher {
-    fn finish(&self) -> u64 {
-        self.0
-    }
-
-    fn write(&mut self, bytes: &[u8]) {
-        self.0 = u64::from_ne_bytes(bytes.try_into().unwrap());
-    }
-}
-
-pub type HashedBytesBuildHasher = BuildHasherDefault<HashedBytesHasher>;
+impl IsEnabled for HashedBytes<'_> {}
