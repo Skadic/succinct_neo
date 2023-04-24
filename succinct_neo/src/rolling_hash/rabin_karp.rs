@@ -96,7 +96,6 @@ impl<'a> RollingHash<'a> for RabinKarp<'a> {
         self.hash
     }
 
-    #[inline(never)]
     fn advance(&mut self) -> u64 {
         let outchar = self.s.get(self.offset).copied().unwrap_or_default() as u64;
         let inchar = self
@@ -128,7 +127,6 @@ impl<'a> RollingHash<'a> for RabinKarp<'a> {
 impl<'a> Iterator for RabinKarp<'a> {
     type Item = HashedBytes<'a>;
 
-    #[inline(never)]
     fn next(&mut self) -> Option<Self::Item> {
         if self.offset + self.window_size > self.s.len() {
             return None;

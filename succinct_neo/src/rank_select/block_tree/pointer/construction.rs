@@ -5,6 +5,8 @@ use crate::{
     rolling_hash::{HashedByteMap, HashedByteMultiMap, HashedBytes, RabinKarp, RollingHash},
 };
 
+use super::block::{BlockId, BlockType};
+
 impl<'a> PointerBlockTree<'a> {
     /// Calculates the sizes each block should have for each level. Index 0 is the shallowest level (only containing the root).
     ///
@@ -46,7 +48,6 @@ impl<'a> PointerBlockTree<'a> {
     }
 
     /// Generate a new level and process it by introducing back pointers
-    #[inline(never)]
     pub(super) fn process_level(&mut self) -> Result<(), &'static str> {
         self.generate_level().ok_or("could not generate level")?;
         let is_internal = self.scan_block_pairs();
@@ -57,7 +58,6 @@ impl<'a> PointerBlockTree<'a> {
 
     /// Generates a new level. Returns a mutable reference to the level if there actually was a level to be generated, `None`
     /// otherwise.
-    #[inline(never)]
     fn generate_level(&mut self) -> Option<&mut Level> {
         let level_depth = self.levels.len();
         if level_depth >= self.level_block_sizes.len() {
@@ -105,7 +105,6 @@ impl<'a> PointerBlockTree<'a> {
     /// Scan through the blocks of the current level pairwise in order to identify leftmost occurrences of block pairs.
     ///
     /// returns: A bit vector where every internal block is marked with a 1 and all back blocks are 0
-    #[inline(never)]
     fn scan_block_pairs(&mut self) -> BitVec {
         let level_depth = self.levels.len() - 1;
         let block_size = self.level_block_sizes[level_depth];
@@ -194,7 +193,6 @@ impl<'a> PointerBlockTree<'a> {
     /// * `internal_block_first_occurrences`: A map mapping from a block id `i` to the block id,
     /// and offset of its source
     ///
-    #[inline(never)]
     fn scan_blocks(&mut self, is_internal: &BitVec) {
         let level_depth = self.levels.len() - 1;
         let block_size = self.level_block_sizes[level_depth];
@@ -203,7 +201,6 @@ impl<'a> PointerBlockTree<'a> {
         // Contains the hashes for every block. We save the hash and the block index on this level
         let mut block_hashes = HashedByteMultiMap::<(HashedBytes, usize)>::default();
 
-        let current_level = self.levels[level_depth].as_slice();
         // We hash every non-internal blocks and store them in the map
         for i in 0..num_blocks - 1 {
             // Hash the current block
@@ -217,7 +214,8 @@ impl<'a> PointerBlockTree<'a> {
 
         let mut rk = RabinKarp::new(self.input, block_size);
 
-        for (block_index, &current_block_id) in current_level.iter().enumerate() {
+        for block_index in 0..num_blocks {
+            let current_block_id = self.levels[level_depth][block_index];
             let current_block = &self.blocks[current_block_id];
             // The number of times we want to hash inside this block and the start position of the next block
             let (num_hashes, next_block_start, next_adjacent) = {
@@ -250,7 +248,11 @@ impl<'a> PointerBlockTree<'a> {
                             // This means that `block_hash` is a previous (actually the
                             // leftmost) occurrence of `hashed`
                             if byte_offset > 0 {
-                                self.blocks[current_level[index]].replace(current_block_id, offset);
+                                self.replace(
+                                    self.levels[level_depth][index],
+                                    current_block_id,
+                                    offset,
+                                );
                             }
                         } else {
                             // If we find a block that is not to be replaced (yet) we save its
@@ -258,7 +260,7 @@ impl<'a> PointerBlockTree<'a> {
                             //internal_block_first_occurrences
                             //    .entry(current_level[index])
                             //    .or_insert((current_level[index], offset));
-                            let block_id = current_level[index];
+                            let block_id = self.levels[level_depth][index];
                             let b = &mut self.blocks[block_id];
                             if b.source.is_none() {
                                 b.source = Some(block_id);
@@ -279,8 +281,77 @@ impl<'a> PointerBlockTree<'a> {
         }
     }
 
-    pub(super) fn prune(&mut self) {
-        Block::prune(&mut self.blocks, self.root);
+    #[allow(clippy::only_used_in_recursion)]
+    pub(super) fn prune(&mut self, block_id: BlockId) {
+        // SAFETY: we decouple this block's lifetime from the Arena in order to pass the arena to
+        //  the recursive call
+        //  This is safe, since a block cannot have itself as a child and the recursive calls only
+        //  operate on this block's children
+        let me = unsafe { (&mut self.blocks[block_id] as *mut Block).as_mut().unwrap() };
+        match me.block_type {
+            // If we hit an internal block we prune all children first
+            BlockType::Internal {
+                ref mut children,
+                incident_pointers,
+            } => {
+                for &child_id in children.iter().rev() {
+                    self.prune(child_id);
+                }
+
+                // From here, we check requirements that need to hold if we want to replace this
+                // block
+
+                // There may not be any other blocks pointing to this
+                if incident_pointers != 0 {
+                    return;
+                }
+
+                // There needs to be a previous occurrence that does not overlap this block
+                let (source, offset) = match me.source.zip(me.offset).map(|(block, offset)| {
+                    (
+                        block,
+                        offset,
+                        self.blocks[block].start + offset + self.blocks[block].len(),
+                    )
+                }) {
+                    Some((source_id, offset, source_end)) if source_end <= me.start => {
+                        (source_id, offset)
+                    }
+                    _ => return,
+                };
+
+                // This is true if all children either are back blocks or have no children (i.e. are
+                // leaves)
+                if children
+                    .iter()
+                    .map(|&child_id| &self.blocks[child_id])
+                    .any(|child| child.has_children())
+                {
+                    return;
+                }
+                // We need to decrement all counters for the blocks the children point to
+                for &child_id in children.iter() {
+                    // SAFETY: We only modify the blocks the child is pointing to (which
+                    // cannot be the child itself)
+                    let child =
+                        unsafe { (&mut self.blocks[child_id] as *mut Block).as_mut().unwrap() };
+                    child.decrement_pointer_count(&mut self.blocks);
+                }
+
+                // Now replace this block with a back pointer
+                self.replace(block_id, source, offset);
+            }
+            // If we hit a back block we increment the counters of the blocks it is pointing to
+            BlockType::Back { .. } => me.increment_pointer_count(&mut self.blocks),
+        };
+    }
+
+    #[inline]
+    fn replace(&mut self, block_id: BlockId, source: BlockId, offset: usize) {
+        let b = &mut self.blocks[block_id];
+        b.source = Some(source);
+        b.offset = Some(offset);
+        b.block_type = BlockType::Back ;
     }
 }
 
@@ -296,7 +367,7 @@ mod test {
     fn validate_links(bt: &PointerBlockTree, level: &Level) {
         let blocks = level.iter().map(|&id| &bt.blocks[id]).collect::<Vec<_>>();
         for block in blocks {
-            if let BlockType::Back = block.block_type {
+            if let BlockType::Back { .. } = block.block_type {
                 let src_id = unsafe { block.source.unwrap_unchecked() };
                 let offset = unsafe { block.offset.unwrap_unchecked() };
                 let source_block = &bt.blocks[src_id];

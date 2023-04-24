@@ -42,7 +42,7 @@ impl<'a> PointerBlockTree<'a> {
         };
         // We process each level of the tree
         while bt.process_level().is_ok() {}
-        bt.prune();
+        bt.prune(bt.root);
 
         Ok(bt)
     }
