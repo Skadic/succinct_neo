@@ -161,7 +161,7 @@ impl<const WIDTH: usize> FixedIntVec<WIDTH> {
 
     #[inline]
     const fn mask(&self) -> usize {
-        (1 << WIDTH) - 1
+        usize::MAX >> (Self::block_width() - WIDTH) 
     }
 
     /// Consumes this int vector and returns the backing [`Vec`].
@@ -189,7 +189,7 @@ impl<const WIDTH: usize> IntVector for FixedIntVec<WIDTH> {
 
         if !WIDTH.is_power_of_two() {
             // If we're on the border between blocks
-            if index_offset + WIDTH >= Self::block_width() {
+            if index_offset + WIDTH > Self::block_width() {
                 let fitting_bits = Self::block_width() - index_offset;
                 let remaining_bits = WIDTH - fitting_bits;
                 let lo = self.data[index_block] >> index_offset;
@@ -222,7 +222,7 @@ impl<const WIDTH: usize> IntVector for FixedIntVec<WIDTH> {
 
         if !WIDTH.is_power_of_two() {
             // If we're on the border between blocks
-            if index_offset + WIDTH >= Self::block_width() {
+            if index_offset + WIDTH > Self::block_width() {
                 let fitting_bits = Self::block_width() - index_offset;
                 unsafe {
                     let lower_block = self.data.get_unchecked_mut(index_block);
@@ -247,21 +247,21 @@ impl<const WIDTH: usize> IntVector for FixedIntVec<WIDTH> {
             self.len()
         );
         debug_assert!(
-            value < (1 << WIDTH),
+            value <= self.mask(),
             "value {value} too large for {WIDTH}-bit integer"
         );
         unsafe { self.set_unchecked(index, value) }
     }
 
     fn push(&mut self, v: usize) {
-        debug_assert!(v < (1 << WIDTH), "value too large for {WIDTH}-bit integer");
+        debug_assert!(v <= self.mask(), "value too large for {WIDTH}-bit integer");
 
         let offset = self.current_offset();
         let mask = self.mask();
 
         if !WIDTH.is_power_of_two() {
             // If we're wrapping into the next block
-            if offset + WIDTH >= Self::block_width() {
+            if offset + WIDTH > Self::block_width() {
                 let fitting_bits = Self::block_width() - offset;
                 let fitting_mask = (1 << fitting_bits) - 1;
                 *self.data.last_mut().unwrap() |= (v & fitting_mask) << offset;

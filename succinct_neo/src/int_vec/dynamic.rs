@@ -58,11 +58,11 @@ impl DynamicIntVec {
         let index_offset = (index * width) % Self::block_width();
 
         // If we're on the border between blocks
-        if index_offset + width >= Self::block_width() {
+        if index_offset + width > Self::block_width() {
             let fitting_bits = Self::block_width() - index_offset;
             let remaining_bits = width - fitting_bits;
             let lo = self.data[index_block] >> index_offset;
-            let mask = (1 << remaining_bits) - 1;
+            let mask = usize::MAX >> (Self::block_width() - remaining_bits);
             let hi = self.data[index_block + 1] & mask;
             return (hi << fitting_bits) | lo;
         }
@@ -87,13 +87,13 @@ impl DynamicIntVec {
     /// In addition, `value` must fit into `width` bits.
     ///
     unsafe fn set_unchecked_with_width(&mut self, index: usize, value: usize, width: usize) {
-        let mask = (1 << width) - 1;
+        let mask = usize::MAX >> (Self::block_width() - width);
         let value = value & mask;
         let index_block = (index * width) / Self::block_width();
         let index_offset = (index * width) % Self::block_width();
 
         // If we're on the border between blocks
-        if index_offset + width >= Self::block_width() {
+        if index_offset + width > Self::block_width() {
             let fitting_bits = Self::block_width() - index_offset;
             unsafe {
                 let lower_block = self.data.get_unchecked_mut(index_block);
@@ -204,15 +204,12 @@ impl DynamicIntVec {
     pub fn with_capacity(width: usize, capacity: usize) -> Self {
         let num_blocks = num_required_blocks::<usize>(capacity, width);
 
-        let mut temp = Self {
+        Self {
             data: Vec::with_capacity(num_blocks),
             width,
             capacity: num_blocks * Self::block_width() / width,
             size: 0,
-        };
-
-        temp.data.push(0);
-        temp
+        }
     }
 
     /// Calculates the current offset inside the last used block where the next integer would be
@@ -224,7 +221,7 @@ impl DynamicIntVec {
 
     #[inline]
     const fn mask(&self) -> usize {
-        (1 << self.width) - 1
+        usize::MAX >> (Self::block_width() - self.width)
     }
 
     /// Modifies this vector to require the minimum amount of bits per saved element.
@@ -310,7 +307,7 @@ impl IntVector for DynamicIntVec {
             self.len()
         );
         assert!(
-            value < (1 << self.width),
+            value < (usize::MAX >> (Self::block_width() - self.width)),
             "value {value} too large for {}-bit integer",
             self.width
         );
@@ -319,23 +316,22 @@ impl IntVector for DynamicIntVec {
 
     fn push(&mut self, v: usize) {
         assert!(
-            v < (1 << self.width),
+            v < (usize::MAX >> (Self::block_width() - self.width)),
             "value too large for {}-bit integer",
             self.width
         );
         let offset = self.current_offset();
         let mask = self.mask();
         if offset == 0 {
-            *self.data.last_mut().unwrap() |= v & mask;
+            self.data.push(v & mask);
             self.size += 1;
             return;
         }
 
         // If we're wrapping into the next block
-        if offset + self.width >= Self::block_width() {
+        if offset + self.width > Self::block_width() {
             let fitting_bits = Self::block_width() - offset;
             let fitting_mask = (1 << fitting_bits) - 1;
-            let mask = (1 << self.width) - 1;
             *self.data.last_mut().unwrap() |= (v & fitting_mask) << offset;
             let hi = (v & mask) >> fitting_bits;
             self.data.push(hi);
