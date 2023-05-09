@@ -31,6 +31,7 @@ pub use strats::*;
 ///
 /// This data structure should work well in most cases with a low memory overhead over the
 /// bitvector (less than 4%).
+#[derive(Debug)]
 pub struct FlatPopcount<Backing, Strat = LinearSearch>
 where
     Backing: Borrow<BitVec>,
@@ -66,7 +67,7 @@ where
     /// bv.flip(15);
     /// bv.flip(20);
     ///
-    /// let rank_ds = FlatPopcount::<()>::new(&bv);
+    /// let rank_ds = FlatPopcount::<_, ()>::new(&bv);
     /// assert_eq!(2, rank_ds.rank::<true>(17));
     /// assert_eq!(12, rank_ds.rank::<false>(13));
     /// ```
@@ -159,7 +160,7 @@ where
     /// };
     ///
     /// let bv = BitVec::new(64);
-    /// let rank_ds = FlatPopcount::<()>::new(&bv);
+    /// let rank_ds = FlatPopcount::<_, ()>::new(&bv);
     /// assert_eq!(bv.len(), rank_ds.len());
     /// ```
     #[inline]
@@ -180,11 +181,11 @@ where
     /// };
     ///
     /// let bv = BitVec::new(64);
-    /// let rank_ds = FlatPopcount::<()>::new(&bv);
+    /// let rank_ds = FlatPopcount::<_, ()>::new(&bv);
     /// assert!(!rank_ds.is_empty());
     ///
     /// let bv = BitVec::new(0);
-    /// let rank_ds = FlatPopcount::<()>::new(&bv);
+    /// let rank_ds = FlatPopcount::<_, ()>::new(&bv);
     /// assert!(rank_ds.is_empty());
     /// ```
     #[must_use]

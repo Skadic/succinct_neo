@@ -30,6 +30,8 @@ pub(crate) struct Block {
     pub start: usize,
     /// The exclusive end index of this block
     pub end: usize,
+    /// This block's index on the level it is on
+    pub index: usize,
     /// The optional next block of this level
     pub next: Option<BlockId>,
     /// The type of this block
@@ -40,10 +42,11 @@ pub(crate) struct Block {
 
 impl Block {
     #[inline]
-    pub fn internal(start: usize, end: usize) -> Self {
+    pub fn internal(start: usize, end: usize, index: usize) -> Self {
         Self {
             start,
             end,
+            index,
             next: None,
             block_type: BlockType::Internal {
                 children: Vec::new(),

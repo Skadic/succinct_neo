@@ -30,7 +30,7 @@ pub trait BitRankSupport {
     /// bv.flip(15);
     /// bv.flip(20);
     ///
-    /// let rank_ds = FlatPopcount::<()>::new(&bv);
+    /// let rank_ds = FlatPopcount::<_, ()>::new(&bv);
     ///
     /// assert_eq!(0, rank_ds.rank::<true>(5));
     /// assert_eq!(0, rank_ds.rank::<true>(10));
@@ -68,7 +68,7 @@ pub trait BitRankSupport {
     /// bv.flip(15);
     /// bv.flip(20);
     ///
-    /// let rank_ds = FlatPopcount::<()>::new(&bv);
+    /// let rank_ds = FlatPopcount::<_, ()>::new(&bv);
     ///
     /// assert_eq!(0, rank_ds.rank_dyn(5, true));
     /// assert_eq!(0, rank_ds.rank_dyn(10, true));
@@ -121,7 +121,7 @@ pub trait BitSelectSupport<const TARGET: bool> {
     /// bv.flip(20);
     ///
     /// // This implements BitSelectSupport<true>
-    /// let rank_ds = FlatPopcount::<LinearSearch>::new(&bv);
+    /// let rank_ds = FlatPopcount::<_, LinearSearch>::new(&bv);
     ///
     ///
     /// assert_eq!(Some(10), rank_ds.select(0));

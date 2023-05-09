@@ -37,7 +37,7 @@ fn bench_construction(c: &mut Criterion) {
     group.throughput(criterion::Throughput::Bytes(BV_SIZE_BYTES as u64));
 
     group.bench_function("bench_construction", |b| {
-        b.iter_with_large_drop(|| FlatPopcount::<()>::new(black_box(&bv)))
+        b.iter_with_large_drop(|| FlatPopcount::<_, ()>::new(black_box(&bv)))
     });
 
     group.finish();
@@ -50,7 +50,7 @@ fn bench_rank(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("flat_popcount");
 
-    let rs_linear = FlatPopcount::<LinearSearch>::new(&bv);
+    let rs_linear = FlatPopcount::<_, LinearSearch>::new(&bv);
     group.bench_function("rank_0", |b| {
         b.iter_batched(
             || rng.gen_range(0..n),
@@ -90,7 +90,7 @@ fn bench_select(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("flat_popcount");
 
-    let rs_linear = FlatPopcount::<LinearSearch>::new(&bv);
+    let rs_linear = FlatPopcount::<_, LinearSearch>::new(&bv);
     let num_ones = rs_linear.num_ones();
     group.bench_function("select_1_linear", |b| {
         b.iter_batched(
@@ -102,7 +102,7 @@ fn bench_select(c: &mut Criterion) {
         )
     });
 
-    let rs_binary = FlatPopcount::<BinarySearch>::new(&bv);
+    let rs_binary = FlatPopcount::<_, BinarySearch>::new(&bv);
     group.bench_function("select_1_binary", |b| {
         b.iter_batched(
             || rng.gen_range(0..num_ones),
@@ -121,7 +121,7 @@ fn bench_select(c: &mut Criterion) {
     ))]
     {
         use succinct_neo::bit_vec::rank_select::flat_popcount::SimdSearch;
-        let rs_simd = FlatPopcount::<SimdSearch>::new(&bv);
+        let rs_simd = FlatPopcount::<_, SimdSearch>::new(&bv);
         group.bench_function("select_1_simd", |b| {
             b.iter_batched(
                 || rng.gen_range(0..num_ones),

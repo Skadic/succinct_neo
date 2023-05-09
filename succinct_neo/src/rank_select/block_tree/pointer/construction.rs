@@ -75,6 +75,7 @@ impl<'a> PointerBlockTree<'a> {
             (current_level, prev_level)
         };
 
+        let mut current_block_idx = 0;
         let mut last = self.blocks.next_id();
         for &mut prev_block in prev_level {
             if self.blocks[prev_block].is_back_block() {
@@ -88,9 +89,12 @@ impl<'a> PointerBlockTree<'a> {
                 if prev_start + i >= n {
                     break;
                 }
-                let block = self
-                    .blocks
-                    .alloc(Block::internal(prev_start + i, prev_start + i + block_size));
+                let block = self.blocks.alloc(Block::internal(
+                    prev_start + i,
+                    prev_start + i + block_size,
+                    current_block_idx,
+                ));
+                current_block_idx += 1;
                 current_level.push(block);
                 self.blocks[prev_block].add_child(block);
                 let next_id = self.blocks.next_id();
@@ -351,7 +355,19 @@ impl<'a> PointerBlockTree<'a> {
         let b = &mut self.blocks[block_id];
         b.source = Some(source);
         b.offset = Some(offset);
-        b.block_type = BlockType::Back ;
+        b.block_type = BlockType::Back;
+    }
+
+    pub(super) fn update_block_indices(&mut self) {
+        for level in &self.levels {
+            let mut i = 0;
+            level
+                .iter()
+                .for_each(|&block_id| {
+                    self.blocks[block_id].index = i;
+                    i += 1;
+                });
+        }
     }
 }
 

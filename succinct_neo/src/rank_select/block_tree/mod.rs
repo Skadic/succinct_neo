@@ -1,163 +1,169 @@
-use std::collections::hash_map::Entry;
-
-use crate::{
-    bit_vec::BitVec,
-    rolling_hash::{HashedByteMap, RabinKarp, RollingHash},
-};
-
+mod construction;
 mod pointer;
 
 pub use pointer::PointerBlockTree;
 
-#[derive(Debug)]
+use crate::{
+    bit_vec::{
+        rank_select::{
+            flat_popcount::{BinarySearch, SelectStrategy},
+            BitRankSupport, BitSelectSupport, FlatPopcount,
+        },
+        BitGet, BitVec,
+    },
+    int_vec::{DynamicIntVec, IntVector},
+};
+
 #[allow(unused)]
+#[derive(Debug)]
 struct BlockTree {
     input_length: usize,
     arity: usize,
     leaf_length: usize,
+    /// Maps the characters of the alphabet to a contiguous sequence of characters starting at 0
+    mapping: AlphabetMapping,
     /// sizes of a block for each level. index 0 = most shallow level
     level_block_sizes: Vec<usize>,
     /// num blocks for each level
     level_block_count: Vec<usize>,
+    is_internal: Vec<FlatPopcount<BitVec, BinarySearch>>,
+    /// For every level and every back block, contains the index of the block to which this back
+    /// block points. This index ignores back blocks (since back blocks cannot point to other back
+    /// blocks)
+    back_pointers: Vec<DynamicIntVec>,
+    /// For every level and every back block, contains the offset inside its source block from
+    /// which to copy
+    offsets: Vec<DynamicIntVec>,
+    leaf_string: DynamicIntVec,
+
+    // -------------- Rank Information --------------
+    // Yeah, we probably don't want this sitting on the stack lol
+    /// For each character `c` contains a vector containing an entry for each block on the top
+    /// level. This entry contains the number of times `c` appears before the block.
+    top_level_block_ranks: [DynamicIntVec; 256],
+    // For each char `c` and each level contains an entry for each block containing the number of
+    // times the `c` appears inside the block
+    block_pop_counts: [Vec<DynamicIntVec>; 256],
+    // For each char `c` and each level contains an entry for each *back* block pointing to a source starting in block `b` at offset `i`
+    // containing the number of times `c` appears inside of `b` before (exclusively) `i`
+    back_block_source_ranks: [Vec<DynamicIntVec>; 256],
 }
 
 impl BlockTree {
-    pub fn new(input: impl AsRef<[u8]>, arity: usize, leaf_length: usize) -> Self {
+    pub fn new(
+        input: impl AsRef<[u8]>,
+        arity: usize,
+        leaf_length: usize,
+    ) -> Result<Self, &'static str> {
         assert!(arity > 1, "arity must be greater than 1");
         assert!(leaf_length > 0, "leaf length must be greater than 0");
-        let s = input.as_ref();
 
-        let mut bt = BlockTree {
-            input_length: s.len(),
-            arity,
-            leaf_length,
-            level_block_sizes: Vec::with_capacity(0),
-            level_block_count: Vec::with_capacity(0),
-        };
-
-        bt.calculate_level_block_sizes();
-        bt.scan_block_pairs(s, 2);
-
-        bt
+        Ok(PointerBlockTree::new(input.as_ref(), arity, leaf_length)?.into())
     }
 
-    fn calculate_level_block_sizes(&mut self) {
-        let num_levels = (self.input_length as f64 / self.leaf_length as f64)
-            .log(self.arity as f64)
-            .ceil() as usize;
-        self.level_block_sizes = Vec::with_capacity(num_levels);
-        self.level_block_count = Vec::with_capacity(num_levels);
-        let float_length = self.input_length as f64;
+    pub fn access(&self, mut i: usize) -> u8 {
+        let mut current_level = 0;
+        let mut next_level_block_size = self.level_block_sizes[current_level];
+        let mut block_idx = 0;
+        i -= block_idx * next_level_block_size;
 
-        let mut block_size = self.leaf_length;
-
-        while block_size < self.input_length {
-            self.level_block_sizes.push(block_size);
-            self.level_block_count
-                .push((float_length / block_size as f64).ceil() as usize);
-            block_size *= self.arity;
-        }
-
-        self.level_block_sizes.reverse();
-        self.level_block_count.reverse();
-
-        println!("sizes: {:?}", self.level_block_sizes);
-        println!("count: {:?}", self.level_block_count);
-    }
-
-    fn process_level(&mut self, s: &[u8], level: usize) {
-        let _marked_pairs = self.scan_block_pairs(s, level);
-    }
-
-    /// Scan through the blocks pairwise in order to identify leftmost occurrences of block pairs.
-    ///
-    /// # Arguments
-    ///
-    /// * `s` - The input string
-    /// * `level` - The current level
-    ///
-    /// returns: A bit vector where every marked pair of blocks is marked with a 1
-    fn scan_block_pairs(&mut self, s: &[u8], level: usize) -> BitVec {
-        let block_size = self.level_block_sizes[level];
-        let num_blocks = self.level_block_count[level];
-        let pair_size = 2 * block_size;
-
-        dbg!(block_size, num_blocks, pair_size);
-
-        let mut rk = RabinKarp::new(s, pair_size);
-
-        // Contains the hashes for every pair of blocks
-        let mut map = HashedByteMap::default();
-
-        // Contains an entry for every block pair
-        // b_i b_{i+1} is marked <=> b_i b{i+1} are the leftmost occurrence of their
-        // respective substring
-        // We start by considering every pair as being the leftmost occurrence
-        // when we find an occurrence further to the left, we un-mark the pair
-        let mut pair_marks = BitVec::one(num_blocks);
-
-        // We hash every pair of blocks and store them in the map
-        for i in 0..num_blocks - 1 {
-            let hashed = rk.hashed_bytes();
-            match map.entry(hashed) {
-                Entry::Occupied(_) => pair_marks.set(i, false),
-                Entry::Vacant(e) => {
-                    e.insert(hashed);
-                }
-            };
-            rk.advance_n(block_size);
-        }
-
-        let mut rk = RabinKarp::new(s, pair_size);
-        for _ in 0..s.len() {
-            let hashed = rk.hashed_bytes();
-            let ptr = hashed.bytes().as_ptr();
-
-            match map.get(&hashed) {
-                None => {}
-                // hash of some block pair that has the same hash as the current window
-                Some(pair_hash) => {
-                    println!("Found: {pair_hash:?}");
-                    let found_ptr = pair_hash.bytes().as_ptr();
-                    // SAFTEY: We know the pointers are both from the text s
-                    let offset = unsafe { found_ptr.offset_from(ptr) };
-                    // This means that the hash we found is of some block pair later than where we
-                    // are now
-                    println!("Offset: {offset}");
-                    if offset > 0 && hashed.bytes() == pair_hash.bytes() {
-                        // We must find the index of the found pair
-                        // Remember that the offset is in bytes and each block is `block_size`
-                        // bytes wide
-                        let block_idx = offset as usize / block_size;
-                        pair_marks.set(block_idx, false);
-                        // TODO We could insert our hashed pair into the map here, to save the
-                        // leftmost occurrence
-                    }
-                }
+        while current_level < self.level_block_sizes.len() - 1 {
+            next_level_block_size = self.level_block_sizes[current_level + 1];
+            block_idx = i / next_level_block_size;
+            if self.is_internal[current_level].get_bit(block_idx) {
+                // What is the index of this block among internal nodes?
+                let internal_rank = self.is_internal[current_level].rank::<true>(block_idx);
+                // The index at which the children start in the level below this one
+                let children_start_index = self.arity * internal_rank;
+                let child_index = i / next_level_block_size;
+                block_idx = children_start_index + child_index;
+                i -= block_idx * next_level_block_size;
+                current_level += 1;
+            } else {
+                // What is the index of this block among back blocks?
+                let back_block_rank = self.is_internal[current_level].rank::<false>(block_idx);
+                let source = self.back_pointers[current_level].get(back_block_rank);
+                i = self.offsets[current_level].get(back_block_rank);
+                block_idx = self.is_internal[current_level].select(source).unwrap();
             }
-            rk.advance();
         }
+        let leaf_size = next_level_block_size;
 
-        // calculate the marking of single blocks from
-        let mut prev = true;
-        for i in 1..num_blocks - 1 {
-            let marked = prev || pair_marks.get(i);
-            prev = pair_marks.get(i);
-            pair_marks.set(i - 1, marked);
-        }
-
-        pair_marks
+        // We should be in a leaf now
+        let unmapped_char = self.leaf_string.get(leaf_size * block_idx + i);
+        self.mapping.to_ascii(unmapped_char as u8)
     }
 }
+
+impl From<PointerBlockTree<'_>> for BlockTree {
+    #[inline(always)]
+    fn from(value: PointerBlockTree) -> Self {
+        Self::construct(value, true)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct AlphabetMapping {
+    to_ascii: [u8; 256],
+    from_ascii: [u8; 256],
+}
+
+impl AlphabetMapping {
+    pub fn generate(input: &[u8]) -> Self {
+        let mut exists = [false; 256];
+        exists[0] = true;
+        for &c in input.iter() {
+            *unsafe { exists.get_unchecked_mut(c as usize) } = true;
+        }
+
+        let mut to_ascii = [0u8; 256];
+        let mut from_ascii = [0u8; 256];
+
+        for (counter, (character, _)) in exists
+            .into_iter()
+            .enumerate()
+            .filter(|&(_, exists)| exists)
+            .enumerate()
+        {
+            // SAFETY: These counter and character can only be less than 256
+            unsafe {
+                *from_ascii.get_unchecked_mut(character) = counter as u8;
+                *to_ascii.get_unchecked_mut(counter) = character as u8;
+            }
+        }
+
+        Self {
+            to_ascii,
+            from_ascii,
+        }
+    }
+
+    #[inline]
+    pub fn to_ascii(&self, code: u8) -> u8 {
+        // SAFETY: the array has 256 entries and code is < 256
+        unsafe { *self.to_ascii.get_unchecked(code as usize) }
+    }
+
+    #[inline]
+    pub fn from_ascii(&self, ascii: u8) -> u8 {
+        // SAFETY: the array has 256 entries and ascii is < 256
+        unsafe { *self.from_ascii.get_unchecked(ascii as usize) }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::BlockTree;
 
     #[test]
     fn new_test() {
-        let s = "verygoodverybaadverygoodverygood";
+        let s = b"verygoodverybaadverygoodverygood";
         //let s = "aaaaaaaaaaaa";
         println!("string len: {}", s.len());
-        let _bt = BlockTree::new(s, 2, 4);
+        let bt = BlockTree::new(s, 2, 4).unwrap();
+
+        for (i, c) in s.iter().copied().enumerate() {
+            assert_eq!(c, bt.access(i), "incorrect value at index {i}");
+        }
     }
 }

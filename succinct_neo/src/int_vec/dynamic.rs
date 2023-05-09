@@ -67,7 +67,7 @@ impl DynamicIntVec {
             return (hi << fitting_bits) | lo;
         }
 
-        let mask = (1 << width) - 1;
+        let mask = usize::MAX >> (Self::block_width() - width);
         (self.data[index_block] >> index_offset) & mask
     }
 
@@ -252,6 +252,7 @@ impl DynamicIntVec {
         };
 
         debug_assert!(min_required_bits <= self.width, "minimum required bits for the elements in this vector greater than previous word width");
+        debug_assert!(min_required_bits > 0, "minimum required bits must be greater than 0");
 
         let old_width = self.width;
         self.width = min_required_bits;
@@ -307,7 +308,7 @@ impl IntVector for DynamicIntVec {
             self.len()
         );
         assert!(
-            value < (usize::MAX >> (Self::block_width() - self.width)),
+            value <= (usize::MAX >> (Self::block_width() - self.width)),
             "value {value} too large for {}-bit integer",
             self.width
         );
@@ -316,8 +317,8 @@ impl IntVector for DynamicIntVec {
 
     fn push(&mut self, v: usize) {
         assert!(
-            v < (usize::MAX >> (Self::block_width() - self.width)),
-            "value too large for {}-bit integer",
+            v <= (usize::MAX >> (Self::block_width() - self.width)),
+            "value {v} too large for {}-bit integer",
             self.width
         );
         let offset = self.current_offset();
@@ -365,6 +366,36 @@ impl Debug for DynamicIntVec {
             .and_then(|_| write!(f, "}}"))
     }
 }
+
+macro_rules! dyn_vec_from_iter_impl {
+    ($t:ty) => {
+        impl FromIterator<$t> for DynamicIntVec {
+            fn from_iter<T: IntoIterator<Item = $t>>(iter: T) -> Self {
+                const MAX_BIT_WIDTH: usize = std::mem::size_of::<$t>() * 8;
+                let iter = iter.into_iter();
+                let init_capacity = match iter.size_hint() {
+                    (_, Some(max)) => max,
+                    (min, _) => min,
+                };
+
+                let mut bv = DynamicIntVec::with_capacity(MAX_BIT_WIDTH, init_capacity);
+                for v in iter {
+                    bv.push(v as usize);
+                }
+                bv.bit_compress();
+                bv.shrink_to_fit();
+                bv
+            }
+        }
+    };
+    ($t:ty, $($other:ty),+) => {
+        dyn_vec_from_iter_impl!( $t );
+        dyn_vec_from_iter_impl!( $($other),+ );
+    }
+}
+
+dyn_vec_from_iter_impl!( u8, u16, u32, u64, usize );
+
 #[cfg(test)]
 mod test {
     use crate::int_vec::dynamic::DynamicIntVec;

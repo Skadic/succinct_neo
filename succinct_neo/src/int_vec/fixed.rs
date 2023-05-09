@@ -161,7 +161,7 @@ impl<const WIDTH: usize> FixedIntVec<WIDTH> {
 
     #[inline]
     const fn mask(&self) -> usize {
-        usize::MAX >> (Self::block_width() - WIDTH) 
+        usize::MAX >> (Self::block_width() - WIDTH)
     }
 
     /// Consumes this int vector and returns the backing [`Vec`].
@@ -310,6 +310,33 @@ impl<const WIDTH: usize> Debug for FixedIntVec<WIDTH> {
             .and_then(|_| write!(f, "}}"))
     }
 }
+
+macro_rules! fix_vec_from_iter_impl {
+    ($t:ty) => {
+        impl<const N: usize> FromIterator<$t> for FixedIntVec<N> {
+            fn from_iter<T: IntoIterator<Item = $t>>(iter: T) -> Self {
+                let iter = iter.into_iter();
+                let init_capacity = match iter.size_hint() {
+                    (_, Some(max)) => max,
+                    (min, _) => min,
+                };
+
+                let mut bv = FixedIntVec::<N>::with_capacity(init_capacity);
+                for v in iter {
+                    bv.push(v as usize);
+                }
+                bv.shrink_to_fit();
+                bv
+            }
+        }
+    };
+    ($t:ty, $($other:ty),+) => {
+        fix_vec_from_iter_impl!( $t );
+        fix_vec_from_iter_impl!( $($other),+ );
+    }
+}
+
+fix_vec_from_iter_impl!(u8, u16, u32, u64, usize);
 
 #[cfg(test)]
 mod test {

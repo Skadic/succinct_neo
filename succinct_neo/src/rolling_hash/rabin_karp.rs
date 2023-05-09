@@ -222,7 +222,7 @@ mod test {
         let mut prev_hash1 = rk.hashed_bytes();
         for i in 2..string_source.len() - 5 {
             rk.advance();
-            let hash = dbg!(i, rk.hashed_bytes()).1;
+            let hash = rk.hashed_bytes();
             assert_eq!(prev_hash2.bytes(), hash.bytes(), "bytes not equal at {i}");
             assert_eq!(prev_hash2.hash, hash.hash, "hashes not equal at {i}");
             assert_eq!(prev_hash2, hash, "hash objects not equal at {i}");

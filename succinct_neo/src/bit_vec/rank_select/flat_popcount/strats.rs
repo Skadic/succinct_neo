@@ -13,6 +13,7 @@ pub trait SelectStrategy {
 }
 
 /// A search strategy using a simple linear search to locate the correct l2 block.
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LinearSearch;
 
 impl SelectStrategy for LinearSearch {
@@ -33,6 +34,7 @@ impl SelectStrategy for LinearSearch {
 
 /// A search strategy using a uniform binary search to locate the correct l2 block.
 /// This always requires 3 search steps.
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct BinarySearch;
 
 impl SelectStrategy for BinarySearch {
@@ -93,6 +95,7 @@ mod simd {
     use crate::bit_vec::rank_select::flat_popcount::L2_INDEX_MASK;
     use std::arch::x86_64::*;
 
+    #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
     pub struct SimdSearch;
 
     impl SelectStrategy for SimdSearch {

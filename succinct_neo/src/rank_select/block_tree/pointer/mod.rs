@@ -1,23 +1,23 @@
 use self::block::{Block, BlockId};
 use id_arena::Arena;
 
-mod block;
+pub(super) mod block;
 mod construction;
 
 type Level = Vec<BlockId>;
 
 pub struct PointerBlockTree<'a> {
     /// Arena for allocating the blocks to hopefully have some semblance of cache efficiency
-    blocks: Arena<Block>,
-    root: BlockId,
-    input: &'a [u8],
-    arity: usize,
-    leaf_length: usize,
+    pub(super) blocks: Arena<Block>,
+    pub(super) root: BlockId,
+    pub(super) input: &'a [u8],
+    pub(super) arity: usize,
+    pub(super) leaf_length: usize,
     /// sizes of a block for each level. index 0 = most shallow level
-    level_block_sizes: Vec<usize>,
+    pub(super) level_block_sizes: Vec<usize>,
     /// num blocks for each level
-    level_block_count: Vec<usize>,
-    levels: Vec<Level>,
+    pub(super) level_block_count: Vec<usize>,
+    pub(super) levels: Vec<Level>,
 }
 
 impl<'a> PointerBlockTree<'a> {
@@ -28,7 +28,7 @@ impl<'a> PointerBlockTree<'a> {
         let (level_block_sizes, level_block_count) =
             Self::calculate_level_block_sizes(input.len(), arity, leaf_length);
         // We allocate the root block
-        let root = blocks.alloc(Block::internal(0, level_block_sizes[0]));
+        let root = blocks.alloc(Block::internal(0, level_block_sizes[0], 0));
 
         let mut bt = Self {
             blocks,
@@ -43,6 +43,7 @@ impl<'a> PointerBlockTree<'a> {
         // We process each level of the tree
         while bt.process_level().is_ok() {}
         bt.prune(bt.root);
+        bt.update_block_indices();
 
         Ok(bt)
     }
