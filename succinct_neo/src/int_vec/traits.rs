@@ -1,6 +1,5 @@
 /// Allows access to integers in a datastructure
 pub trait IntVector {
-
     /// Returns the amount of integers would fit into the currently allocated memory.
     ///
     /// # Examples
@@ -52,7 +51,6 @@ pub trait IntVector {
 
     /// Sets the integer at an index to the given value while checking for bounds and other requirements.
     fn set(&mut self, index: usize, value: usize);
-
 
     /// Adds an integer to the end of the vector.
     ///

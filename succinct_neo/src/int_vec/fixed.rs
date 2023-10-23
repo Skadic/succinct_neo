@@ -1,7 +1,7 @@
 use crate::int_vec::Iter;
 use crate::int_vec::{num_required_blocks, IntVector};
+use std::fmt::Debug;
 
-#[derive(Debug)]
 pub struct FixedIntVec<const INT_WIDTH: usize> {
     data: Vec<usize>,
     capacity: usize,
@@ -9,7 +9,6 @@ pub struct FixedIntVec<const INT_WIDTH: usize> {
 }
 
 impl<const WIDTH: usize> FixedIntVec<WIDTH> {
-
     /// Creates an integer vector with a given bit width and a default capacity of 8.
     ///
     /// # Arguments
@@ -162,7 +161,7 @@ impl<const WIDTH: usize> FixedIntVec<WIDTH> {
 
     #[inline]
     const fn mask(&self) -> usize {
-        (1 << WIDTH) - 1
+        usize::MAX >> (Self::block_width() - WIDTH)
     }
 
     /// Consumes this int vector and returns the backing [`Vec`].
@@ -172,7 +171,6 @@ impl<const WIDTH: usize> FixedIntVec<WIDTH> {
 }
 
 impl<const WIDTH: usize> IntVector for FixedIntVec<WIDTH> {
-
     #[inline]
     fn capacity(&self) -> usize {
         self.capacity
@@ -191,7 +189,7 @@ impl<const WIDTH: usize> IntVector for FixedIntVec<WIDTH> {
 
         if !WIDTH.is_power_of_two() {
             // If we're on the border between blocks
-            if index_offset + WIDTH >= Self::block_width() {
+            if index_offset + WIDTH > Self::block_width() {
                 let fitting_bits = Self::block_width() - index_offset;
                 let remaining_bits = WIDTH - fitting_bits;
                 let lo = self.data[index_block] >> index_offset;
@@ -224,7 +222,7 @@ impl<const WIDTH: usize> IntVector for FixedIntVec<WIDTH> {
 
         if !WIDTH.is_power_of_two() {
             // If we're on the border between blocks
-            if index_offset + WIDTH >= Self::block_width() {
+            if index_offset + WIDTH > Self::block_width() {
                 let fitting_bits = Self::block_width() - index_offset;
                 unsafe {
                     let lower_block = self.data.get_unchecked_mut(index_block);
@@ -249,24 +247,21 @@ impl<const WIDTH: usize> IntVector for FixedIntVec<WIDTH> {
             self.len()
         );
         debug_assert!(
-            value < (1 << WIDTH),
+            value <= self.mask(),
             "value {value} too large for {WIDTH}-bit integer"
         );
         unsafe { self.set_unchecked(index, value) }
     }
 
     fn push(&mut self, v: usize) {
-        debug_assert!(
-            v < (1 << WIDTH),
-            "value too large for {WIDTH}-bit integer"
-        );
+        debug_assert!(v <= self.mask(), "value too large for {WIDTH}-bit integer");
 
         let offset = self.current_offset();
         let mask = self.mask();
 
         if !WIDTH.is_power_of_two() {
             // If we're wrapping into the next block
-            if offset + WIDTH >= Self::block_width() {
+            if offset + WIDTH > Self::block_width() {
                 let fitting_bits = Self::block_width() - offset;
                 let fitting_mask = (1 << fitting_bits) - 1;
                 *self.data.last_mut().unwrap() |= (v & fitting_mask) << offset;
@@ -299,9 +294,53 @@ impl<const WIDTH: usize> Default for FixedIntVec<WIDTH> {
     }
 }
 
+impl<const WIDTH: usize> Debug for FixedIntVec<WIDTH> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{{")
+            .and_then(|_| {
+                let mut iter = self.iter().peekable();
+                while let Some(v) = iter.next() {
+                    write!(f, "{v}")?;
+                    if iter.peek().is_some() {
+                        write!(f, ", ")?;
+                    }
+                }
+                Ok(())
+            })
+            .and_then(|_| write!(f, "}}"))
+    }
+}
+
+macro_rules! fix_vec_from_iter_impl {
+    ($t:ty) => {
+        impl<const N: usize> FromIterator<$t> for FixedIntVec<N> {
+            fn from_iter<T: IntoIterator<Item = $t>>(iter: T) -> Self {
+                let iter = iter.into_iter();
+                let init_capacity = match iter.size_hint() {
+                    (_, Some(max)) => max,
+                    (min, _) => min,
+                };
+
+                let mut bv = FixedIntVec::<N>::with_capacity(init_capacity);
+                for v in iter {
+                    bv.push(v as usize);
+                }
+                bv.shrink_to_fit();
+                bv
+            }
+        }
+    };
+    ($t:ty, $($other:ty),+) => {
+        fix_vec_from_iter_impl!( $t );
+        fix_vec_from_iter_impl!( $($other),+ );
+    }
+}
+
+fix_vec_from_iter_impl!(u8, u16, u32, u64, usize);
+
 #[cfg(test)]
 mod test {
-    use crate::int_vec::{IntVector, fixed::FixedIntVec};
+    use crate::int_vec::{fixed::FixedIntVec, IntVector};
 
     #[test]
     fn basics_test() {

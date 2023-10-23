@@ -7,7 +7,6 @@ mod traits;
 pub use dynamic::DynamicIntVec;
 pub use fixed::FixedIntVec;
 
-
 /// Gets the number of required blocks of the given type to contain the specified number of
 /// elements of a given width.
 ///
@@ -30,8 +29,7 @@ pub fn num_required_blocks<T>(num_elements: usize, bit_width: usize) -> usize {
         as usize
 }
 
-impl<const T: usize> IntoIterator for FixedIntVec<T>
-{
+impl<const T: usize> IntoIterator for FixedIntVec<T> {
     type Item = usize;
 
     type IntoIter = IntoIter<FixedIntVec<T>>;
@@ -41,8 +39,7 @@ impl<const T: usize> IntoIterator for FixedIntVec<T>
     }
 }
 
-impl IntoIterator for DynamicIntVec
-{
+impl IntoIterator for DynamicIntVec {
     type Item = usize;
 
     type IntoIter = IntoIter<DynamicIntVec>;
@@ -52,8 +49,7 @@ impl IntoIterator for DynamicIntVec
     }
 }
 
-impl<'a, const T: usize> IntoIterator for &'a FixedIntVec<T>
-{
+impl<'a, const T: usize> IntoIterator for &'a FixedIntVec<T> {
     type Item = usize;
 
     type IntoIter = Iter<'a, FixedIntVec<T>>;
@@ -63,8 +59,7 @@ impl<'a, const T: usize> IntoIterator for &'a FixedIntVec<T>
     }
 }
 
-impl<'a> IntoIterator for &'a DynamicIntVec
-{
+impl<'a> IntoIterator for &'a DynamicIntVec {
     type Item = usize;
 
     type IntoIter = Iter<'a, DynamicIntVec>;
@@ -91,7 +86,7 @@ where
         }
 
         // SAFETY: Bounds check already happened
-        let res = unsafe{ self.v.get_unchecked(self.i) };
+        let res = unsafe { self.v.get_unchecked(self.i) };
         self.i += 1;
         Some(res)
     }

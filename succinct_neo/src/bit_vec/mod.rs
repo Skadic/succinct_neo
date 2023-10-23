@@ -4,7 +4,7 @@ use std::ops::{Deref, DerefMut};
 use itertools::Itertools;
 
 pub use crate::bit_vec::slice::BitSlice;
-use crate::int_vec::{DynamicIntVec, FixedIntVec, IntVector};
+use crate::int_vec::IntVector;
 pub use traits::*;
 
 use self::slice::Iter;
@@ -73,6 +73,30 @@ impl BitVec {
     /// ```
     pub fn new(size: usize) -> Self {
         let v = vec![0usize; (size as f64 / WORD_SIZE as f64).ceil() as usize];
+        Self {
+            data: BitSlice::new(v, 0, size),
+            size,
+        }
+    }
+
+    /// Creates a new [`BitVec`] with all values set to one.
+    ///
+    /// # Arguments
+    ///
+    /// * `size`: The size of this bitvector.
+    ///
+    /// returns: A new bit vector with all indices set to 1.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use succinct_neo::bit_vec::BitVec;
+    ///
+    /// // A bit vector with space for 16 bits and all values being one
+    /// let bv = BitVec::one(16);
+    /// ```
+    pub fn one(size: usize) -> Self {
+        let v = vec![usize::MAX; (size as f64 / WORD_SIZE as f64).ceil() as usize];
         Self {
             data: BitSlice::new(v, 0, size),
             size,

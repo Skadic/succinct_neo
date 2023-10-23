@@ -1,7 +1,8 @@
 use crate::int_vec::Iter;
 use crate::int_vec::{num_required_blocks, IntVector};
+use std::fmt::Debug;
 
-#[derive(Debug)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct DynamicIntVec {
     data: Vec<usize>,
     capacity: usize,
@@ -57,16 +58,16 @@ impl DynamicIntVec {
         let index_offset = (index * width) % Self::block_width();
 
         // If we're on the border between blocks
-        if index_offset + width >= Self::block_width() {
+        if index_offset + width > Self::block_width() {
             let fitting_bits = Self::block_width() - index_offset;
             let remaining_bits = width - fitting_bits;
             let lo = self.data[index_block] >> index_offset;
-            let mask = (1 << remaining_bits) - 1;
+            let mask = usize::MAX >> (Self::block_width() - remaining_bits);
             let hi = self.data[index_block + 1] & mask;
             return (hi << fitting_bits) | lo;
         }
 
-        let mask = (1 << width) - 1;
+        let mask = usize::MAX >> (Self::block_width() - width);
         (self.data[index_block] >> index_offset) & mask
     }
 
@@ -86,13 +87,13 @@ impl DynamicIntVec {
     /// In addition, `value` must fit into `width` bits.
     ///
     unsafe fn set_unchecked_with_width(&mut self, index: usize, value: usize, width: usize) {
-        let mask = (1 << width) - 1;
+        let mask = usize::MAX >> (Self::block_width() - width);
         let value = value & mask;
         let index_block = (index * width) / Self::block_width();
         let index_offset = (index * width) % Self::block_width();
 
         // If we're on the border between blocks
-        if index_offset + width >= Self::block_width() {
+        if index_offset + width > Self::block_width() {
             let fitting_bits = Self::block_width() - index_offset;
             unsafe {
                 let lower_block = self.data.get_unchecked_mut(index_block);
@@ -203,15 +204,12 @@ impl DynamicIntVec {
     pub fn with_capacity(width: usize, capacity: usize) -> Self {
         let num_blocks = num_required_blocks::<usize>(capacity, width);
 
-        let mut temp = Self {
+        Self {
             data: Vec::with_capacity(num_blocks),
             width,
             capacity: num_blocks * Self::block_width() / width,
             size: 0,
-        };
-
-        temp.data.push(0);
-        temp
+        }
     }
 
     /// Calculates the current offset inside the last used block where the next integer would be
@@ -223,7 +221,7 @@ impl DynamicIntVec {
 
     #[inline]
     const fn mask(&self) -> usize {
-        (1 << self.width) - 1
+        usize::MAX >> (Self::block_width() - self.width)
     }
 
     /// Modifies this vector to require the minimum amount of bits per saved element.
@@ -254,6 +252,7 @@ impl DynamicIntVec {
         };
 
         debug_assert!(min_required_bits <= self.width, "minimum required bits for the elements in this vector greater than previous word width");
+        debug_assert!(min_required_bits > 0, "minimum required bits must be greater than 0");
 
         let old_width = self.width;
         self.width = min_required_bits;
@@ -309,7 +308,7 @@ impl IntVector for DynamicIntVec {
             self.len()
         );
         assert!(
-            value < (1 << self.width),
+            value <= (usize::MAX >> (Self::block_width() - self.width)),
             "value {value} too large for {}-bit integer",
             self.width
         );
@@ -318,23 +317,22 @@ impl IntVector for DynamicIntVec {
 
     fn push(&mut self, v: usize) {
         assert!(
-            v < (1 << self.width),
-            "value too large for {}-bit integer",
+            v <= (usize::MAX >> (Self::block_width() - self.width)),
+            "value {v} too large for {}-bit integer",
             self.width
         );
         let offset = self.current_offset();
         let mask = self.mask();
         if offset == 0 {
-            *self.data.last_mut().unwrap() |= v & mask;
+            self.data.push(v & mask);
             self.size += 1;
             return;
         }
 
         // If we're wrapping into the next block
-        if offset + self.width >= Self::block_width() {
+        if offset + self.width > Self::block_width() {
             let fitting_bits = Self::block_width() - offset;
             let fitting_mask = (1 << fitting_bits) - 1;
-            let mask = (1 << self.width) - 1;
             *self.data.last_mut().unwrap() |= (v & fitting_mask) << offset;
             let hi = (v & mask) >> fitting_bits;
             self.data.push(hi);
@@ -351,6 +349,52 @@ impl IntVector for DynamicIntVec {
         self.size
     }
 }
+
+impl Debug for DynamicIntVec {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{{")
+            .and_then(|_| {
+                let mut iter = self.iter().peekable();
+                while let Some(v) = iter.next() {
+                    write!(f, "{v}")?;
+                    if iter.peek().is_some() {
+                        write!(f, ", ")?;
+                    }
+                }
+                Ok(())
+            })
+            .and_then(|_| write!(f, "}}"))
+    }
+}
+
+macro_rules! dyn_vec_from_iter_impl {
+    ($t:ty) => {
+        impl FromIterator<$t> for DynamicIntVec {
+            fn from_iter<T: IntoIterator<Item = $t>>(iter: T) -> Self {
+                const MAX_BIT_WIDTH: usize = std::mem::size_of::<$t>() * 8;
+                let iter = iter.into_iter();
+                let init_capacity = match iter.size_hint() {
+                    (_, Some(max)) => max,
+                    (min, _) => min,
+                };
+
+                let mut bv = DynamicIntVec::with_capacity(MAX_BIT_WIDTH, init_capacity);
+                for v in iter {
+                    bv.push(v as usize);
+                }
+                bv.bit_compress();
+                bv.shrink_to_fit();
+                bv
+            }
+        }
+    };
+    ($t:ty, $($other:ty),+) => {
+        dyn_vec_from_iter_impl!( $t );
+        dyn_vec_from_iter_impl!( $($other),+ );
+    }
+}
+
+dyn_vec_from_iter_impl!( u8, u16, u32, u64, usize );
 
 #[cfg(test)]
 mod test {
